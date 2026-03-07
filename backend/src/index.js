@@ -15,7 +15,19 @@ const statsRoutes     = require('./routes/stats');
 
 const app = express();
 
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173', credentials: true }));
+app.use(cors({
+  origin: function(origin, callback) {
+    const allowed = [
+      process.env.FRONTEND_URL,
+      'http://localhost:5173',
+      /\.vercel\.app$/
+    ];
+    if (!origin) return callback(null, true);
+    const ok = allowed.some(a => a instanceof RegExp ? a.test(origin) : a === origin);
+    callback(ok ? null : new Error('Not allowed'), ok);
+  },
+  credentials: true
+}));
 app.use(express.json());
 
 // Routes
