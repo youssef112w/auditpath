@@ -14,6 +14,7 @@ import Challenges from './pages/Challenges'
 import Journal    from './pages/Journal'
 import Portfolio  from './pages/Portfolio'
 import MentorPage from './pages/MentorPage'
+import PublicPortfolio from './pages/PublicPortfolio'
 import Notif      from './components/Notif'
 
 const NAV = [
@@ -68,6 +69,7 @@ function AppLayout() {
     <Routes>
       <Route path="/login"    element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/p/:username" element={<PublicPortfolio />} />
       <Route path="*"         element={<Navigate to="/login" />} />
     </Routes>
   )
