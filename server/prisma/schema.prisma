@@ -1,0 +1,162 @@
+// This is your Prisma schema file
+// Run: npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── USER ─────────────────────────────────────────────────────
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  bio       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  sessions    Session[]
+  roadmap     RoadmapProgress[]
+  audits      AuditLog[]
+  vulns       Vulnerability[]
+  challenges  Challenge[]
+  journals    JournalEntry[]
+  streak      Streak?
+}
+
+// ─── SESSIONS (Study Time) ────────────────────────────────────
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hours     Float
+  note      String?
+  date      String   // YYYY-MM-DD
+  startedAt DateTime?
+  endedAt   DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+// ─── ROADMAP PROGRESS ─────────────────────────────────────────
+model RoadmapProgress {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phase     Int      // 1-5
+  taskIndex Int      // 0-based index within phase
+  done      Boolean  @default(false)
+  doneAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, phase, taskIndex])
+  @@index([userId])
+}
+
+// ─── AUDIT LOG ────────────────────────────────────────────────
+model AuditLog {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  link      String?
+  problem   String        @db.Text
+  cause     String?       @db.Text
+  fix       String?       @db.Text
+  notes     String?       @db.Text
+  severity  AuditSeverity @default(MEDIUM)
+  type      AuditType     @default(PRACTICE)
+  isPublic  Boolean       @default(false)
+  date      String        // YYYY-MM-DD
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([userId])
+}
+
+enum AuditSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum AuditType {
+  CTF
+  REAL
+  PRACTICE
+}
+
+// ─── VULNERABILITY ENCYCLOPEDIA ───────────────────────────────
+model Vulnerability {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  category    String
+  severity    String   @default("HIGH")
+  description String   @db.Text
+  code        String?  @db.Text  // vulnerable code example
+  exploit     String?  @db.Text  // how to exploit
+  fix         String?  @db.Text  // how to fix
+  refs        String?  // comma-separated URLs
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ─── CHALLENGES ───────────────────────────────────────────────
+model Challenge {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  platform   String   // Ethernaut, DVDF, Code4rena, etc.
+  difficulty String   @default("medium")
+  solved     Boolean  @default(false)
+  solvedAt   DateTime?
+  timeSpent  String?  // "2 hours"
+  writeup    String?  @db.Text
+  isPublic   Boolean  @default(false)
+  date       String   // YYYY-MM-DD
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ─── RESEARCH JOURNAL ─────────────────────────────────────────
+model JournalEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  content   String   @db.Text
+  tags      String?  // comma-separated
+  isPublic  Boolean  @default(false)
+  date      String   // YYYY-MM-DD
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ─── STREAK ───────────────────────────────────────────────────
+model Streak {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  current   Int      @default(0)
+  longest   Int      @default(0)
+  lastDate  String?  // last active YYYY-MM-DD
+  updatedAt DateTime @updatedAt
+}

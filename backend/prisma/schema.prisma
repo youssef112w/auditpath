@@ -1,0 +1,115 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+
+  sessions    Session[]
+  roadmap     RoadmapProgress[]
+  audits      Audit[]
+  vulns       Vulnerability[]
+  challenges  Challenge[]
+  journals    Journal[]
+  posts       PortfolioPost[]
+}
+
+model Session {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      String
+  hours     Float
+  note      String?
+  createdAt DateTime @default(now())
+}
+
+model RoadmapProgress {
+  id     Int    @id @default(autoincrement())
+  userId Int
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key    String
+  done   Boolean @default(false)
+
+  @@unique([userId, key])
+}
+
+model Audit {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  link      String?
+  problem   String
+  cause     String?
+  fix       String?
+  severity  String   @default("medium")
+  type      String   @default("ctf")
+  notes     String?
+  isPublic  Boolean  @default(false)
+  date      String
+  createdAt DateTime @default(now())
+}
+
+model Vulnerability {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  category    String?
+  severity    String   @default("high")
+  description String?
+  code        String?
+  exploit     String?
+  fix         String?
+  refs        String?
+  date        String
+  createdAt   DateTime @default(now())
+}
+
+model Challenge {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  platform   String
+  difficulty String   @default("medium")
+  solved     Boolean  @default(false)
+  time       String?
+  writeup    String?
+  date       String
+  createdAt  DateTime @default(now())
+}
+
+model Journal {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  content   String
+  tags      String?
+  isPublic  Boolean  @default(false)
+  date      String
+  createdAt DateTime @default(now())
+}
+
+model PortfolioPost {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  content   String
+  type      String   @default("writeup")
+  tags      String?
+  createdAt DateTime @default(now())
+}
