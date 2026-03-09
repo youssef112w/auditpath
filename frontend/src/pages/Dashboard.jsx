@@ -33,6 +33,20 @@ export default function Dashboard({ notify, onStreakChange }) {
     setLoading(false)
   }
 
+  // استعادة حالة التايمر من localStorage عند فتح الصفحة
+  useEffect(() => {
+    const savedStart = localStorage.getItem('timerStart')
+    const savedRunning = localStorage.getItem('timerRunning')
+    const savedNote = localStorage.getItem('timerNote')
+    if (savedRunning === 'true' && savedStart) {
+      const t = parseInt(savedStart)
+      setStartTime(t)
+      setElapsed(Date.now() - t)
+      setRunning(true)
+    }
+    if (savedNote) setNote(savedNote)
+  }, [])
+
   useEffect(() => { loadStats() }, [])
 
   useEffect(() => {
@@ -42,6 +56,11 @@ export default function Dashboard({ notify, onStreakChange }) {
     return () => clearInterval(timerRef.current)
   }, [running, startTime])
 
+  // حفظ الـ note في localStorage تلقائياً
+  useEffect(() => {
+    if (running) localStorage.setItem('timerNote', note)
+  }, [note, running])
+
   const fmt = ms => {
     const s = Math.floor(ms / 1000)
     return `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`
@@ -50,12 +69,18 @@ export default function Dashboard({ notify, onStreakChange }) {
   const startSession = () => {
     const t = Date.now()
     setStartTime(t); setElapsed(0); setRunning(true)
+    localStorage.setItem('timerStart', t)
+    localStorage.setItem('timerRunning', 'true')
+    localStorage.setItem('timerNote', '')
     notify('بدأت الجلسة! 🚀')
   }
 
   const endSession = async () => {
     if (!running) return
     setRunning(false)
+    localStorage.removeItem('timerStart')
+    localStorage.removeItem('timerRunning')
+    localStorage.removeItem('timerNote')
     const hours = parseFloat((elapsed / 3600000).toFixed(2))
     const date  = new Date().toISOString().split('T')[0]
     try {
@@ -107,7 +132,7 @@ export default function Dashboard({ notify, onStreakChange }) {
           ) : (
             <>
               <button className="btn btn-danger" onClick={endSession}>⏹ أنهِ وسجل</button>
-              <button className="btn btn-secondary" onClick={()=>{setRunning(false);setElapsed(0)}}>✕ إلغاء</button>
+              <button className="btn btn-secondary" onClick={()=>{setRunning(false);setElapsed(0);localStorage.removeItem('timerStart');localStorage.removeItem('timerRunning');localStorage.removeItem('timerNote')}}>✕ إلغاء</button>
             </>
           )}
         </div>
