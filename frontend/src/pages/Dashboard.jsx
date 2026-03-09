@@ -15,15 +15,42 @@ const ROADMAP_PHASES = [
   { phase: 4, tasks: 5 }, { phase: 5, tasks: 4 },
 ]
 
+const TIMER_KEY   = 'ap_timerStart'
+const RUNNING_KEY = 'ap_timerRunning'
+const PAUSED_KEY  = 'ap_timerPaused'   // ms elapsed when paused
+const NOTE_KEY    = 'ap_timerNote'
+const LAPS_KEY    = 'ap_timerLaps'
+
+function fmt(ms) {
+  const s = Math.floor(Math.abs(ms) / 1000)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+}
+
+function fmtShort(ms) {
+  const s = Math.floor(ms / 1000)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  if (Math.floor(s / 3600) > 0) return fmt(ms)
+  return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+}
+
 export default function Dashboard({ notify, onStreakChange }) {
-  const [stats, setStats]     = useState(null)
-  const [running, setRunning] = useState(false)
-  const [elapsed, setElapsed] = useState(0)
+  const [stats, setStats]       = useState(null)
+  const [running, setRunning]   = useState(false)
+  const [paused, setPaused]     = useState(false)
+  const [elapsed, setElapsed]   = useState(0)
   const [startTime, setStartTime] = useState(null)
-  const [note, setNote]       = useState('')
-  const [loading, setLoading] = useState(true)
+  const [pausedAt, setPausedAt] = useState(0)   // total ms paused so far
+  const [note, setNote]         = useState('')
+  const [laps, setLaps]         = useState([])
+  const [loading, setLoading]   = useState(true)
+  const [intensity, setIntensity] = useState('medium') // low / medium / high
   const timerRef = useRef(null)
 
+  // ── Load stats ──────────────────────────────────────────────
   const loadStats = async () => {
     try {
       const res = await api.get('/stats')
@@ -33,66 +60,127 @@ export default function Dashboard({ notify, onStreakChange }) {
     setLoading(false)
   }
 
-  // استعادة حالة التايمر من localStorage عند فتح الصفحة
-  useEffect(() => {
-    const savedStart = localStorage.getItem('timerStart')
-    const savedRunning = localStorage.getItem('timerRunning')
-    const savedNote = localStorage.getItem('timerNote')
-    if (savedRunning === 'true' && savedStart) {
-      const t = parseInt(savedStart)
-      setStartTime(t)
-      setElapsed(Date.now() - t)
-      setRunning(true)
-    }
-    if (savedNote) setNote(savedNote)
-  }, [])
-
   useEffect(() => { loadStats() }, [])
 
+  // ── Restore timer from localStorage ─────────────────────────
   useEffect(() => {
-    if (running) {
-      timerRef.current = setInterval(() => setElapsed(Date.now() - startTime), 1000)
-    } else { clearInterval(timerRef.current) }
-    return () => clearInterval(timerRef.current)
-  }, [running, startTime])
+    const savedRunning = localStorage.getItem(RUNNING_KEY)
+    const savedStart   = localStorage.getItem(TIMER_KEY)
+    const savedPaused  = localStorage.getItem(PAUSED_KEY)
+    const savedNote    = localStorage.getItem(NOTE_KEY)
+    const savedLaps    = localStorage.getItem(LAPS_KEY)
 
-  // حفظ الـ note في localStorage تلقائياً
+    if (savedNote)  setNote(savedNote)
+    if (savedLaps)  try { setLaps(JSON.parse(savedLaps)) } catch {}
+
+    if (savedRunning === 'paused' && savedPaused) {
+      setPaused(true)
+      setRunning(true)
+      setPausedAt(parseInt(savedPaused))
+      setElapsed(parseInt(savedPaused))
+    } else if (savedRunning === 'true' && savedStart) {
+      const t = parseInt(savedStart)
+      const alreadyPaused = parseInt(savedPaused || '0')
+      setStartTime(t)
+      setPausedAt(alreadyPaused)
+      setElapsed(Date.now() - t + alreadyPaused)
+      setRunning(true)
+      setPaused(false)
+    }
+  }, [])
+
+  // ── Tick ────────────────────────────────────────────────────
   useEffect(() => {
-    if (running) localStorage.setItem('timerNote', note)
+    if (running && !paused && startTime) {
+      timerRef.current = setInterval(() => {
+        setElapsed(Date.now() - startTime + pausedAt)
+      }, 200)
+    } else {
+      clearInterval(timerRef.current)
+    }
+    return () => clearInterval(timerRef.current)
+  }, [running, paused, startTime, pausedAt])
+
+  // ── Save note live ───────────────────────────────────────────
+  useEffect(() => {
+    if (running) localStorage.setItem(NOTE_KEY, note)
   }, [note, running])
 
-  const fmt = ms => {
-    const s = Math.floor(ms / 1000)
-    return `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`
+  // ── Actions ─────────────────────────────────────────────────
+  const clearStorage = () => {
+    ;[TIMER_KEY, RUNNING_KEY, PAUSED_KEY, NOTE_KEY, LAPS_KEY].forEach(k => localStorage.removeItem(k))
   }
 
   const startSession = () => {
     const t = Date.now()
-    setStartTime(t); setElapsed(0); setRunning(true)
-    localStorage.setItem('timerStart', t)
-    localStorage.setItem('timerRunning', 'true')
-    localStorage.setItem('timerNote', '')
+    setStartTime(t); setElapsed(0); setPausedAt(0)
+    setRunning(true); setPaused(false); setLaps([])
+    localStorage.setItem(TIMER_KEY,   String(t))
+    localStorage.setItem(RUNNING_KEY, 'true')
+    localStorage.setItem(PAUSED_KEY,  '0')
+    localStorage.setItem(NOTE_KEY,    '')
+    localStorage.setItem(LAPS_KEY,    '[]')
     notify('بدأت الجلسة! 🚀')
+  }
+
+  const pauseSession = () => {
+    setPaused(true)
+    const currentElapsed = Date.now() - startTime + pausedAt
+    setPausedAt(currentElapsed)
+    localStorage.setItem(RUNNING_KEY, 'paused')
+    localStorage.setItem(PAUSED_KEY,  String(currentElapsed))
+    notify('الجلسة متوقفة مؤقتاً ⏸')
+  }
+
+  const resumeSession = () => {
+    const t = Date.now()
+    setStartTime(t)
+    setPaused(false)
+    localStorage.setItem(TIMER_KEY,   String(t))
+    localStorage.setItem(RUNNING_KEY, 'true')
+    notify('استكملت الجلسة ▶')
+  }
+
+  const addLap = () => {
+    const lapTime = elapsed
+    const prev = laps.length > 0 ? laps[laps.length - 1].total : 0
+    const newLap = { n: laps.length + 1, total: lapTime, split: lapTime - prev }
+    const updated = [...laps, newLap]
+    setLaps(updated)
+    localStorage.setItem(LAPS_KEY, JSON.stringify(updated))
   }
 
   const endSession = async () => {
     if (!running) return
-    setRunning(false)
-    localStorage.removeItem('timerStart')
-    localStorage.removeItem('timerRunning')
-    localStorage.removeItem('timerNote')
-    const hours = parseFloat((elapsed / 3600000).toFixed(2))
+    clearInterval(timerRef.current)
+    setRunning(false); setPaused(false)
+    const finalElapsed = elapsed
+    const hours = parseFloat((finalElapsed / 3600000).toFixed(2))
     const date  = new Date().toISOString().split('T')[0]
+    clearStorage()
     try {
-      await api.post('/sessions', { date, hours, note })
+      await api.post('/sessions', {
+        date, hours, note,
+        startedAt: new Date(startTime).toISOString(),
+        endedAt: new Date().toISOString(),
+      })
       await loadStats()
-      notify(`جلسة محفوظة: ${fmt(elapsed)} ✓`)
+      notify(`جلسة محفوظة: ${fmt(finalElapsed)} ✓`)
     } catch (e) { notify('خطأ في حفظ الجلسة') }
-    setElapsed(0); setNote('')
+    setElapsed(0); setPausedAt(0); setNote(''); setLaps([])
   }
 
-  const tip = MENTOR_TIPS[new Date().getDay() % MENTOR_TIPS.length]
+  const cancelSession = () => {
+    clearInterval(timerRef.current)
+    setRunning(false); setPaused(false)
+    setElapsed(0); setPausedAt(0); setNote(''); setLaps([])
+    clearStorage()
+  }
 
+  // ── Derived ─────────────────────────────────────────────────
+  const tip = MENTOR_TIPS[new Date().getDay() % MENTOR_TIPS.length]
+  const elapsedHours = elapsed / 3600000
+  const intensityColor = intensity === 'high' ? 'var(--accent3)' : intensity === 'low' ? 'var(--accent2)' : 'var(--accent)'
   if (loading) return <div className="loading">جاري التحميل...</div>
 
   const { totalHours, totalAudits, totalVulns, streak, weekly = [], heatmap = [], recentSessions = [], roadmapDone = 0 } = stats || {}
@@ -118,24 +206,300 @@ export default function Dashboard({ notify, onStreakChange }) {
         <div className="stat-card red"><div className="stat-value">🔥{streak||0}</div><div className="stat-label">DAY STREAK</div></div>
       </div>
 
-      <div className="timer-card">
-        <div className="card-title">// SESSION TIMER</div>
-        <div className="timer-display">{fmt(elapsed)}</div>
+      {/* ── PROFESSIONAL TIMER ── */}
+      <div className="timer-card" style={{position:'relative', overflow:'hidden'}}>
+
+        <style>{`
+          @keyframes timerPulse { 0%,100%{opacity:.5} 50%{opacity:1} }
+          @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(400%); }
+          }
+          @keyframes lapSlide { from{opacity:0;transform:translateX(-12px)} to{opacity:1;transform:translateX(0)} }
+          @keyframes borderGlow {
+            0%,100% { box-shadow: 0 0 0px transparent; }
+            50% { box-shadow: 0 0 24px var(--t-color, #00ff88)44; }
+          }
+          .lap-row { animation: lapSlide .25s cubic-bezier(.2,.8,.3,1); }
+          .timer-digit {
+            font-family: var(--font-code);
+            font-size: clamp(48px, 7vw, 80px);
+            font-weight: 800;
+            letter-spacing: 2px;
+            transition: color .4s, text-shadow .4s;
+            line-height: 1;
+          }
+          .timer-colon {
+            font-family: var(--font-code);
+            font-size: clamp(36px, 5vw, 60px);
+            font-weight: 300;
+            opacity: .25;
+            margin: 0 4px;
+            animation: timerPulse 1s infinite;
+            line-height: 1;
+          }
+          .t-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 10px 20px; border-radius: 8px;
+            font-family: var(--font-mono); font-size: 11px;
+            font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+            cursor: pointer; transition: all .2s; border: 1px solid transparent;
+            white-space: nowrap;
+          }
+          .t-btn-primary {
+            background: var(--accent); color: #000;
+            box-shadow: 0 0 20px var(--accent)44;
+          }
+          .t-btn-primary:hover { filter: brightness(1.15); transform: translateY(-1px); }
+          .t-btn-secondary {
+            background: rgba(255,255,255,.06);
+            color: var(--text2);
+            border-color: rgba(255,255,255,.1);
+          }
+          .t-btn-secondary:hover { background: rgba(255,255,255,.1); color: var(--text1); }
+          .t-btn-danger {
+            background: rgba(255,60,60,.12);
+            color: #ff6b6b;
+            border-color: rgba(255,60,60,.25);
+          }
+          .t-btn-danger:hover { background: rgba(255,60,60,.2); }
+          .t-btn-ghost {
+            background: transparent; color: var(--text3);
+            border-color: rgba(255,255,255,.06);
+          }
+          .t-btn-ghost:hover { color: var(--text2); border-color: rgba(255,255,255,.15); }
+          .t-btn:disabled { opacity: .3; cursor: not-allowed; transform: none !important; }
+          .int-pill {
+            padding: 3px 10px; border-radius: 20px;
+            border: 1px solid rgba(255,255,255,.08);
+            background: transparent;
+            font-family: var(--font-mono); font-size: 9px;
+            cursor: pointer; transition: all .15s; letter-spacing: 1px;
+            text-transform: uppercase; color: var(--text3);
+          }
+          .int-pill.active {
+            border-color: var(--ip-color);
+            background: color-mix(in srgb, var(--ip-color) 12%, transparent);
+            color: var(--ip-color);
+          }
+          .timer-ring-track { fill: none; stroke: rgba(255,255,255,.05); }
+          .timer-ring-fill {
+            fill: none;
+            stroke-linecap: round;
+            transition: stroke-dashoffset .9s cubic-bezier(.4,0,.2,1), stroke .4s;
+          }
+        `}</style>
+
+        {/* Ambient glow bg */}
+        <div style={{
+          position:'absolute', inset:0, pointerEvents:'none',
+          background: running && !paused
+            ? `radial-gradient(ellipse at 50% 0%, ${intensityColor}12 0%, transparent 65%)`
+            : 'none',
+          transition: 'background .6s',
+        }} />
+
+        {/* Scanline effect when running */}
+        {running && !paused && (
+          <div style={{
+            position:'absolute', left:0, right:0, height:'2px', pointerEvents:'none',
+            background: `linear-gradient(90deg, transparent, ${intensityColor}22, transparent)`,
+            animation: 'scanline 3s linear infinite',
+          }} />
+        )}
+
+        {/* Header */}
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24, position:'relative'}}>
+          <div style={{display:'flex', alignItems:'center', gap:10}}>
+            <div className="card-title" style={{margin:0}}>// SESSION TIMER</div>
+            {/* Live dot */}
+            {running && (
+              <div style={{display:'flex', alignItems:'center', gap:5,
+                padding:'2px 8px', borderRadius:12,
+                background: paused ? 'rgba(255,200,0,.08)' : `${intensityColor}12`,
+                border: `1px solid ${paused ? 'rgba(255,200,0,.2)' : intensityColor+'30'}`,
+              }}>
+                <div style={{
+                  width:5, height:5, borderRadius:'50%',
+                  background: paused ? '#ffc800' : intensityColor,
+                  boxShadow: paused ? '0 0 6px #ffc800' : `0 0 8px ${intensityColor}`,
+                  animation: paused ? 'none' : 'timerPulse .8s infinite',
+                }} />
+                <span style={{fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:1.5,
+                  color: paused ? '#ffc800' : intensityColor, textTransform:'uppercase',
+                }}>
+                  {paused ? 'PAUSED' : 'LIVE'}
+                </span>
+              </div>
+            )}
+          </div>
+          {/* Intensity pills */}
+          {running && (
+            <div style={{display:'flex', gap:4, alignItems:'center'}}>
+              {[
+                {lvl:'low',   color:'var(--accent2)', label:'LOW'},
+                {lvl:'medium',color:'var(--accent)',  label:'MED'},
+                {lvl:'high',  color:'var(--accent3)', label:'HIGH'},
+              ].map(({lvl, color, label}) => (
+                <button
+                  key={lvl}
+                  className={`int-pill ${intensity===lvl?'active':''}`}
+                  style={{'--ip-color': color}}
+                  onClick={() => setIntensity(lvl)}
+                >{label}</button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Main timer area */}
+        <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:40, padding:'0 0 28px'}}>
+
+          {/* SVG ring */}
+          <div style={{position:'relative', flexShrink:0}}>
+            {(() => {
+              const R = 54, C = 2*Math.PI*R
+              const progress = running ? Math.min((elapsed % 3600000) / 3600000, 1) : 0
+              return (
+                <svg width="128" height="128" viewBox="0 0 128 128">
+                  <circle cx="64" cy="64" r={R} className="timer-ring-track" strokeWidth="3" />
+                  <circle cx="64" cy="64" r={R}
+                    className="timer-ring-fill"
+                    strokeWidth="3"
+                    stroke={running && !paused ? intensityColor : 'rgba(255,255,255,.15)'}
+                    strokeDasharray={C}
+                    strokeDashoffset={C - progress * C}
+                    transform="rotate(-90 64 64)"
+                  />
+                  {/* Center text inside ring */}
+                  <text x="64" y="58" textAnchor="middle"
+                    style={{fontFamily:'var(--font-mono)', fontSize:'10px', fill:'var(--text3)', letterSpacing:1}}>
+                    {!running ? 'READY' : paused ? 'PAUSED' : 'FOCUS'}
+                  </text>
+                  <text x="64" y="76" textAnchor="middle"
+                    style={{fontFamily:'var(--font-code)', fontSize:'13px', fill: running ? intensityColor : 'var(--text2)', fontWeight:700}}>
+                    {(elapsedHours).toFixed(2)}h
+                  </text>
+                </svg>
+              )
+            })()}
+          </div>
+
+          {/* Digits */}
+          <div>
+            <div style={{display:'flex', alignItems:'center',
+              textShadow: running && !paused ? `0 0 30px ${intensityColor}66` : 'none',
+            }}>
+              <span className="timer-digit" style={{color: running && !paused ? intensityColor : 'var(--text1)'}}>
+                {String(Math.floor(elapsed / 3600000)).padStart(2,'0')}
+              </span>
+              <span className="timer-colon" style={{animationPlayState: running && !paused ? 'running' : 'paused'}}>:</span>
+              <span className="timer-digit" style={{color: running && !paused ? intensityColor : 'var(--text1)'}}>
+                {String(Math.floor((elapsed % 3600000) / 60000)).padStart(2,'0')}
+              </span>
+              <span className="timer-colon" style={{animationPlayState: running && !paused ? 'running' : 'paused'}}>:</span>
+              <span className="timer-digit" style={{color: running && !paused ? intensityColor : 'var(--text1)'}}>
+                {String(Math.floor((elapsed % 60000) / 1000)).padStart(2,'0')}
+              </span>
+            </div>
+            {/* Mini stats row */}
+            {running && (
+              <div style={{display:'flex', gap:24, marginTop:10}}>
+                <div style={{fontFamily:'var(--font-mono)', fontSize:10}}>
+                  <span style={{color:'var(--text3)', letterSpacing:1}}>LAPS </span>
+                  <span style={{color:'var(--text2)', fontWeight:600}}>{laps.length}</span>
+                </div>
+                <div style={{fontFamily:'var(--font-mono)', fontSize:10}}>
+                  <span style={{color:'var(--text3)', letterSpacing:1}}>START </span>
+                  <span style={{color:'var(--text2)', fontWeight:600}}>
+                    {startTime ? new Date(startTime).toLocaleTimeString('en', {hour:'2-digit', minute:'2-digit'}) : '--'}
+                  </span>
+                </div>
+                {laps.length > 0 && (
+                  <div style={{fontFamily:'var(--font-mono)', fontSize:10}}>
+                    <span style={{color:'var(--text3)', letterSpacing:1}}>LAST </span>
+                    <span style={{color: intensityColor, fontWeight:600}}>
+                      {fmtShort(laps[laps.length-1].split)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Note input */}
         {running && (
           <div style={{marginBottom:16}}>
-            <input className="form-input" placeholder="ملاحظة عن الجلسة (اختياري)" value={note} onChange={e=>setNote(e.target.value)} />
+            <input
+              className="form-input"
+              placeholder="📝 بتشتغل على إيه دلوقتي؟ (اختياري)"
+              value={note}
+              onChange={e => setNote(e.target.value)}
+            />
           </div>
         )}
-        <div className="timer-buttons">
+
+        {/* Action buttons */}
+        <div style={{display:'flex', gap:8, flexWrap:'wrap', justifyContent:'center'}}>
           {!running ? (
-            <button className="btn btn-primary" onClick={startSession}>▶ ابدأ الجلسة</button>
+            <button className="t-btn t-btn-primary" onClick={startSession} style={{minWidth:180, justifyContent:'center'}}>
+              <span>▶</span> ابدأ الجلسة
+            </button>
           ) : (
             <>
-              <button className="btn btn-danger" onClick={endSession}>⏹ أنهِ وسجل</button>
-              <button className="btn btn-secondary" onClick={()=>{setRunning(false);setElapsed(0);localStorage.removeItem('timerStart');localStorage.removeItem('timerRunning');localStorage.removeItem('timerNote')}}>✕ إلغاء</button>
+              {paused ? (
+                <button className="t-btn t-btn-primary" onClick={resumeSession}>
+                  <span>▶</span> استكمل
+                </button>
+              ) : (
+                <button className="t-btn t-btn-secondary" onClick={pauseSession}>
+                  <span>⏸</span> توقف مؤقتاً
+                </button>
+              )}
+              <button className="t-btn t-btn-secondary" onClick={addLap} disabled={paused}>
+                <span>◎</span> Lap
+              </button>
+              <button className="t-btn t-btn-danger" onClick={endSession}>
+                <span>⏹</span> أنهِ وسجل
+              </button>
+              <button className="t-btn t-btn-ghost" onClick={cancelSession}>
+                ✕
+              </button>
             </>
           )}
         </div>
+
+        {/* Laps table */}
+        {laps.length > 0 && (
+          <div style={{marginTop:24, borderTop:'1px solid rgba(255,255,255,.06)', paddingTop:16}}>
+            <div style={{fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)',
+              letterSpacing:2, marginBottom:12, textTransform:'uppercase'}}>
+              // LAP TIMES
+            </div>
+            <div style={{display:'grid', gridTemplateColumns:'36px 1fr 1fr', gap:'8px 20px',
+              fontFamily:'var(--font-mono)', fontSize:11}}>
+              <span style={{color:'var(--text3)', fontSize:9, letterSpacing:1}}>#</span>
+              <span style={{color:'var(--text3)', fontSize:9, letterSpacing:1}}>SPLIT</span>
+              <span style={{color:'var(--text3)', fontSize:9, letterSpacing:1}}>TOTAL</span>
+              {[...laps].reverse().map((l, idx) => (
+                <>
+                  <span key={`n${l.n}`} className="lap-row"
+                    style={{color: idx===0 ? intensityColor : 'var(--text3)', fontWeight: idx===0?700:400}}>
+                    {String(l.n).padStart(2,'0')}
+                  </span>
+                  <span key={`s${l.n}`} className="lap-row"
+                    style={{color: idx===0 ? intensityColor : 'var(--accent)', fontWeight: idx===0?700:400}}>
+                    {fmtShort(l.split)}
+                  </span>
+                  <span key={`t${l.n}`} className="lap-row" style={{color:'var(--text2)'}}>
+                    {fmtShort(l.total)}
+                  </span>
+                </>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid-2">
