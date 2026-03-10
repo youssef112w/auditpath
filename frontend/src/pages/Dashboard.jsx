@@ -539,127 +539,18 @@ export default function Dashboard({ notify, onStreakChange }) {
       </div>
 
       <div className="card">
-        <style>{`
-          .hm-cell {
-            width:13px; height:13px; border-radius:3px;
-            cursor:pointer; position:relative;
-            transition: transform .12s, filter .12s;
-            flex-shrink:0;
-          }
-          .hm-cell:hover { transform:scale(1.4); filter:brightness(1.5); z-index:2; }
-          .hm-cell.hm-today { outline:1.5px solid rgba(255,255,255,.5); outline-offset:1px; }
-          .hm-tip {
-            position:fixed; z-index:999;
-            background:rgba(10,12,16,.95);
-            border:1px solid rgba(255,255,255,.12);
-            border-radius:8px; padding:7px 11px;
-            font-family:var(--font-mono); font-size:11px;
-            pointer-events:none; white-space:nowrap;
-          }
-          .hm-stat {
-            display:flex; flex-direction:column; align-items:center; gap:2px;
-            padding:10px 16px; border-radius:10px;
-            background:rgba(255,255,255,.03);
-            border:1px solid rgba(255,255,255,.06);
-          }
-        `}</style>
-
-        {/* Header */}
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16}}>
-          <div className="card-title" style={{margin:0}}>// ACTIVITY HEATMAP <span style={{fontSize:9,opacity:.5}}>90 DAYS</span></div>
+        <div className="card-title">// ACTIVITY HEATMAP (90 DAYS)</div>
+        <div className="heatmap">
+          {heatmap.map((h,i) => {
+            const lvl = h.hours===0?'':h.hours<1?'l1':h.hours<2?'l2':h.hours<3?'l3':'l4'
+            return <div key={i} className={`heat-cell ${lvl}`} title={`${h.date}: ${h.hours}h`} />
+          })}
         </div>
-
-        {/* Stats */}
-        {(() => {
-          const today = new Date().toISOString().split('T')[0]
-          const activeDays = heatmap.filter(h => h.hours > 0).length
-          const totalHeatHrs = heatmap.reduce((a,b) => a + b.hours, 0)
-          const bestDay = heatmap.reduce((a,b) => b.hours > a.hours ? b : a, {hours:0, date:''})
-          const avg = activeDays > 0 ? (totalHeatHrs / activeDays).toFixed(1) : '—'
-
-          // Build week-aligned grid
-          const map = {}
-          heatmap.forEach(h => { map[h.date] = h.hours })
-          const todayD = new Date(); todayD.setHours(0,0,0,0)
-          const startRaw = new Date(todayD); startRaw.setDate(startRaw.getDate() - 90)
-          const gridStart = new Date(startRaw); gridStart.setDate(gridStart.getDate() - startRaw.getDay())
-          const cells = []
-          const d = new Date(gridStart)
-          while (d <= todayD) {
-            const iso = d.toISOString().split('T')[0]
-            cells.push({ date: iso, hours: map[iso] || 0 })
-            d.setDate(d.getDate() + 1)
-          }
-          const totalCols = Math.ceil(cells.length / 7)
-
-          // Month labels
-          const monthLabels = {}
-          cells.forEach((c, i) => {
-            const col = Math.floor(i / 7)
-            const mo = new Date(c.date).getMonth()
-            if (!Object.values(monthLabels).some(v=>v.mo===mo))
-              monthLabels[col] = { mo, label: new Date(c.date).toLocaleDateString('en',{month:'short'}) }
-          })
-
-          return (
-            <>
-              <div style={{display:'flex', gap:10, marginBottom:20, flexWrap:'wrap'}}>
-                {[
-                  {val: activeDays,              label:'ACTIVE DAYS', color:'var(--accent)'},
-                  {val: totalHeatHrs.toFixed(1)+'h', label:'TOTAL 90D',  color:'var(--accent2)'},
-                  {val: bestDay.hours>0 ? bestDay.hours.toFixed(1)+'h' : '—', label:'BEST DAY', color:'var(--accent3)'},
-                  {val: avg !== '—' ? avg+'h' : '—', label:'AVG/DAY',   color:'#a78bfa'},
-                ].map((s,i) => (
-                  <div key={i} className="hm-stat">
-                    <span style={{fontFamily:'var(--font-code)', fontSize:18, color:s.color, fontWeight:700}}>{s.val}</span>
-                    <span style={{fontFamily:'var(--font-mono)', fontSize:9, color:'var(--text3)', letterSpacing:1}}>{s.label}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{display:'flex', gap:6, overflowX:'auto', paddingBottom:6}}>
-                {/* Day labels */}
-                <div style={{display:'grid', gridTemplateRows:'repeat(7,13px)', gap:3, marginTop:18, flexShrink:0}}>
-                  {['S','M','T','W','T','F','S'].map((d,i)=>(
-                    <span key={i} style={{fontFamily:'var(--font-mono)', fontSize:8, color:'var(--text3)',
-                      lineHeight:'13px', opacity: i%2===0?.4:.7}}>{d}</span>
-                  ))}
-                </div>
-
-                {/* Grid */}
-                <div style={{flexShrink:0}}>
-                  {/* Month labels */}
-                  <div style={{display:'grid', gridTemplateColumns:`repeat(${totalCols},16px)`, marginBottom:4, height:14}}>
-                    {Array.from({length:totalCols},(_,col) => (
-                      <span key={col} style={{fontFamily:'var(--font-mono)', fontSize:8, color:'var(--text3)', opacity:.6}}>
-                        {monthLabels[col]?.label || ''}
-                      </span>
-                    ))}
-                  </div>
-                  {/* Cells */}
-                  <div style={{display:'grid', gridTemplateRows:'repeat(7,13px)', gridAutoFlow:'column', gap:3}}>
-                    {cells.map((cell,i) => {
-                      const lvl = cell.hours===0 ? '' : cell.hours<1?'l1':cell.hours<2?'l2':cell.hours<3?'l3':'l4'
-                      return (
-                        <div key={i}
-                          className={`heat-cell ${lvl} hm-cell ${cell.date===today?'hm-today':''}`}
-                          title={`${cell.date}: ${cell.hours>0 ? cell.hours.toFixed(1)+'h' : 'No activity'}`}
-                        />
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Legend */}
-              <div style={{display:'flex', gap:8, marginTop:10, alignItems:'center', justifyContent:'flex-end'}}>
-                <span style={{fontFamily:'var(--font-mono)', fontSize:9, color:'var(--text3)'}}>Less</span>
-                {['','l1','l2','l3','l4'].map(l=><div key={l} className={`heat-cell ${l}`} style={{width:11,height:11,borderRadius:3}} />)}
-                <span style={{fontFamily:'var(--font-mono)', fontSize:9, color:'var(--text3)'}}>More</span>
-              </div>
-            </>
-          )
-        })()}
+        <div style={{display:'flex',gap:8,marginTop:8,alignItems:'center'}}>
+          <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--text3)'}}>Less</span>
+          {['','l1','l2','l3','l4'].map(l=><div key={l} className={`heat-cell ${l}`} style={{width:10,height:10}} />)}
+          <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--text3)'}}>More</span>
+        </div>
       </div>
 
       <div className="card" style={{marginTop:16}}>
