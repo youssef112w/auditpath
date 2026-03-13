@@ -12,11 +12,11 @@ router.get('/', auth, async (req, res) => {
       streak, roadmapDone,
     ] = await Promise.all([
       prisma.session.aggregate({ where:{userId:uid}, _sum:{hours:true}, _count:true }),
-      prisma.auditLog.count({ where:{userId:uid} }),
+      prisma.audit.count({ where:{userId:uid} }),
       prisma.vulnerability.count({ where:{userId:uid} }),
       prisma.challenge.count({ where:{userId:uid} }),
       prisma.challenge.count({ where:{userId:uid, solved:true} }),
-      prisma.journalEntry.count({ where:{userId:uid} }),
+      prisma.journal.count({ where:{userId:uid} }),
       prisma.streak.findUnique({ where:{userId:uid} }),
       prisma.roadmapProgress.count({ where:{userId:uid, done:true} }),
     ]);
