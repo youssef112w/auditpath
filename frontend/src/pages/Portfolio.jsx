@@ -21,7 +21,7 @@ export default function Portfolio({ notify }) {
   if (!stats) return <div className="loading">جاري التحميل...</div>
 
   const solved = challenges.filter(c => c.solved).length
-  const publicURL = `${window.location.origin}/portfolio/${user?.username}`
+  const publicURL = `${window.location.origin}/p/${user?.username}`
 
   const copyURL = () => {
     navigator.clipboard.writeText(publicURL)
