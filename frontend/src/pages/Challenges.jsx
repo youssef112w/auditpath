@@ -1,103 +1,134 @@
-// src/pages/Challenges.jsx
+// src/pages/Encyclopedia.jsx
 import { useState, useEffect } from 'react'
 import api from '../api'
 import Modal from '../components/Modal'
 
-const PLATFORMS = ['Ethernaut','Damn Vulnerable DeFi','Code4rena','Sherlock','Immunefi','CTF','Other']
+const EMPTY = { name:'', category:'', severity:'high', description:'', code:'', exploit:'', fix:'', refs:'' }
+const SEVERITIES = ['critical','high','medium','low']
 
-export default function Challenges({ notify }) {
-  const [challenges, setChallenges] = useState([])
-  const [showModal, setShowModal]   = useState(false)
-  const [form, setForm] = useState({ name:'', platform:'Ethernaut', difficulty:'medium', solved:false, time:'', writeup:'' })
+export default function Encyclopedia({ notify }) {
+  const [vulns, setVulns]         = useState([])
+  const [showModal, setShowModal] = useState(false)
+  const [detail, setDetail]       = useState(null)
+  const [search, setSearch]       = useState('')
+  const [filterSev, setFilterSev] = useState('ALL')
+  const [editMode, setEditMode]   = useState(false)
+  const [form, setForm]           = useState(EMPTY)
 
-  useEffect(() => { api.get('/challenges').then(r => setChallenges(r.data)) }, [])
+  useEffect(() => { api.get('/vulns').then(r => setVulns(r.data)) }, [])
 
-  const save = async () => {
-    if (!form.name) return notify('اكتب اسم التحدي')
-    const date = new Date().toISOString().split('T')[0]
-    const res  = await api.post('/challenges', { ...form, date })
-    setChallenges(prev => [res.data, ...prev])
-    setShowModal(false)
-    setForm({ name:'', platform:'Ethernaut', difficulty:'medium', solved:false, time:'', writeup:'' })
-    notify('تم تسجيل التحدي ✓')
+  const filtered = vulns.filter(v => {
+    const matchSearch = v.name.toLowerCase().includes(search.toLowerCase()) || (v.category||'').toLowerCase().includes(search.toLowerCase())
+    const matchSev = filterSev === 'ALL' || v.severity === filterSev
+    return matchSearch && matchSev
+  })
+
+  const openAdd = () => { setForm(EMPTY); setEditMode(false); setShowModal(true) }
+
+  const openEdit = (e, v) => {
+    e.stopPropagation()
+    setForm({ name:v.name, category:v.category||'', severity:v.severity, description:v.description||'', code:v.code||'', exploit:v.exploit||'', fix:v.fix||'', refs:v.refs||'', _id:v.id })
+    setEditMode(true); setShowModal(true); setDetail(null)
   }
 
-  const toggleSolved = async (c) => {
-    await api.put(`/challenges/${c.id}`, { solved: !c.solved })
-    setChallenges(prev => prev.map(x => x.id===c.id ? {...x,solved:!x.solved} : x))
-    notify(!c.solved ? 'مبروك! تم تحديده كمحلول 🎉' : 'تم إلغاء الحل')
+  const save = async () => {
+    if (!form.name) return notify('اكتب اسم الثغرة')
+    const date = new Date().toISOString().split('T')[0]
+    if (editMode) {
+      const res = await api.put(`/vulns/${form._id}`, { ...form, date })
+      setVulns(prev => prev.map(v => v.id === form._id ? res.data : v))
+      notify('تم التعديل ✓')
+    } else {
+      const res = await api.post('/vulns', { ...form, date })
+      setVulns(prev => [res.data, ...prev])
+      notify('تمت إضافة الثغرة ✓')
+    }
+    setShowModal(false); setForm(EMPTY)
   }
 
   const del = async (id) => {
-    await api.delete(`/challenges/${id}`)
-    setChallenges(prev => prev.filter(c => c.id !== id))
-    notify('تم الحذف')
+    await api.delete(`/vulns/${id}`)
+    setVulns(prev => prev.filter(v => v.id !== id))
+    setDetail(null); notify('تم الحذف')
   }
-
-  const solved = challenges.filter(c => c.solved).length
 
   return (
     <div>
       <div className="page-header">
-        <div className="page-title">الـ <span>Challenges</span></div>
-        <div className="page-sub">// CTF / Security Labs Tracker</div>
+        <div className="page-title">الـ <span>Encyclopedia</span></div>
+        <div className="page-sub">// قاعدة بياناتك الشخصية للثغرات</div>
       </div>
       <div className="mentor-card">
         <div className="mentor-title">🎓 نصيحة الـ Mentor</div>
-        <div className="mentor-tip"><strong>Ethernaut</strong> هو بداية مثالية. ابدأ بيه. كل level فيه درس اكتب عنه writeup حتى لو مختصر. الـ writeup هو اللي بيثبت الفهم.</div>
+        <div className="mentor-tip">كل ثغرة لازم تكتب <strong>كود مثال + طريقة الاستغلال + الحل</strong>. مجرد الاسم مش كفاية.</div>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,marginBottom:20}}>
-        <div className="stat-card blue"><div className="stat-value">{challenges.length}</div><div className="stat-label">TOTAL</div></div>
-        <div className="stat-card green"><div className="stat-value">{solved}</div><div className="stat-label">SOLVED</div></div>
-        <div className="stat-card yellow"><div className="stat-value">{challenges.length-solved}</div><div className="stat-label">PENDING</div></div>
-      </div>
+
       <div className="flex-between mb-16">
-        <span className="text-muted">{challenges.length} تحدي مسجل</span>
-        <button className="btn btn-primary" onClick={()=>setShowModal(true)}>+ تحدي جديد</button>
+        <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+          <input className="form-input" style={{maxWidth:220}} placeholder="🔍 ابحث عن ثغرة..." value={search} onChange={e=>setSearch(e.target.value)} />
+          {['ALL',...SEVERITIES].map(s => (
+            <button key={s} onClick={() => setFilterSev(s)} style={{
+              fontFamily:'var(--font-mono)',fontSize:10,letterSpacing:1,padding:'4px 12px',borderRadius:20,cursor:'pointer',border:'1px solid',
+              background: filterSev===s ? 'var(--accent)' : 'transparent',
+              color: filterSev===s ? '#000' : 'var(--text3)',
+              borderColor: filterSev===s ? 'var(--accent)' : 'rgba(255,255,255,0.1)',
+            }}>{s}</button>
+          ))}
+        </div>
+        <button className="btn btn-primary" onClick={openAdd}>+ إضافة ثغرة</button>
       </div>
-      {challenges.length === 0 ? (
-        <div className="empty-state"><div className="empty-icon">🏆</div>ابدأ بـ Ethernaut Level 1!</div>
+
+      {vulns.length === 0 ? (
+        <div className="empty-state"><div className="empty-icon">📖</div>ابدأ ببناء encyclopedia الخاصة بيك!</div>
+      ) : filtered.length === 0 ? (
+        <div className="empty-state">مفيش نتايج</div>
       ) : (
-        challenges.map(c => (
-          <div key={c.id} className="entry-card">
-            <div className="flex-between">
-              <div className="entry-title">{c.name}</div>
-              <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                <span className={`sev ${c.difficulty==='easy'?'sev-low':c.difficulty==='medium'?'sev-medium':c.difficulty==='hard'?'sev-high':'sev-critical'}`}>{c.difficulty}</span>
-                {c.solved ? <span style={{color:'var(--accent)',fontSize:18}}>✓</span> : <span style={{color:'var(--text3)',fontSize:14}}>○</span>}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}}>
+          {filtered.map(v => (
+            <div key={v.id} className="entry-card" onClick={() => setDetail(v)}>
+              <div className="flex-between mb-8">
+                <div className="entry-title">{v.name}</div>
+                <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                  <span className={`sev sev-${v.severity}`}>{v.severity}</span>
+                  <button className="btn btn-sm btn-secondary" onClick={e => openEdit(e, v)} style={{padding:'2px 8px',fontSize:10}}>تعديل</button>
+                </div>
               </div>
+              {v.category && <span className="tag">{v.category}</span>}
+              <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--text3)',marginTop:8,lineHeight:1.5}}>{v.description?.slice(0,80)}...</div>
             </div>
-            <div className="entry-meta">
-              <span className="tag">{c.platform}</span>
-              {c.time && <span className="entry-date">⏱ {c.time}</span>}
-              <span className="entry-date">{c.date}</span>
-            </div>
-            {c.writeup && <div style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text3)',marginTop:8,lineHeight:1.5}}>{c.writeup.slice(0,120)}{c.writeup.length>120?'...':''}</div>}
-            <div style={{display:'flex',gap:8,marginTop:10}}>
-              <button className="btn btn-sm" style={{background:c.solved?'rgba(0,255,136,0.1)':'rgba(255,255,255,0.05)',color:c.solved?'var(--accent)':'var(--text3)',border:`1px solid ${c.solved?'rgba(0,255,136,0.3)':'var(--border)'}`}} onClick={()=>toggleSolved(c)}>
-                {c.solved ? '✓ محلول' : 'حدده كمحلول'}
-              </button>
-              <button className="btn btn-danger btn-sm" onClick={()=>del(c.id)}>حذف</button>
-            </div>
-          </div>
-        ))
+          ))}
+        </div>
       )}
+
       {showModal && (
-        <Modal title="+ تحدي جديد" onClose={()=>setShowModal(false)}>
-          <div className="form-group"><label className="form-label">اسم التحدي *</label><input className="form-input" placeholder="Ethernaut Level 1 — Fallback" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} /></div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:0}}>
-            <div className="form-group"><label className="form-label">المنصة</label><select className="form-select" value={form.platform} onChange={e=>setForm({...form,platform:e.target.value})}>{PLATFORMS.map(p=><option key={p}>{p}</option>)}</select></div>
-            <div className="form-group"><label className="form-label">الصعوبة</label><select className="form-select" value={form.difficulty} onChange={e=>setForm({...form,difficulty:e.target.value})}><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option><option value="extreme">Extreme</option></select></div>
+        <Modal title={editMode ? `تعديل: ${form.name}` : '+ إضافة ثغرة'} onClose={() => setShowModal(false)}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+            <div className="form-group"><label className="form-label">الاسم *</label><input className="form-input" placeholder="Reentrancy" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} /></div>
+            <div className="form-group"><label className="form-label">الفئة</label><input className="form-input" placeholder="Access Control" value={form.category} onChange={e=>setForm({...form,category:e.target.value})} /></div>
           </div>
-          <div className="form-group"><label className="form-label">وقت الحل</label><input className="form-input" placeholder="2 ساعة" value={form.time} onChange={e=>setForm({...form,time:e.target.value})} /></div>
-          <div className="form-group"><label className="form-label">Writeup</label><textarea className="form-textarea" rows={4} value={form.writeup} onChange={e=>setForm({...form,writeup:e.target.value})} /></div>
-          <div className="form-group" style={{display:'flex',gap:10,alignItems:'center'}}>
-            <input type="checkbox" id="solved" checked={form.solved} onChange={e=>setForm({...form,solved:e.target.checked})} style={{accentColor:'var(--accent)'}} />
-            <label htmlFor="solved" style={{fontFamily:'var(--font-mono)',fontSize:12,color:'var(--text2)',cursor:'pointer'}}>محلول بالفعل</label>
-          </div>
+          <div className="form-group"><label className="form-label">Severity</label><select className="form-select" value={form.severity} onChange={e=>setForm({...form,severity:e.target.value})}><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+          <div className="form-group"><label className="form-label">الشرح</label><textarea className="form-textarea" value={form.description} onChange={e=>setForm({...form,description:e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">كود المثال</label><textarea className="form-textarea" style={{fontFamily:'var(--font-code)',direction:'ltr'}} value={form.code} onChange={e=>setForm({...form,code:e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">طريقة الاستغلال</label><textarea className="form-textarea" value={form.exploit} onChange={e=>setForm({...form,exploit:e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">الحل</label><textarea className="form-textarea" value={form.fix} onChange={e=>setForm({...form,fix:e.target.value})} /></div>
           <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-            <button className="btn btn-secondary" onClick={()=>setShowModal(false)}>إلغاء</button>
-            <button className="btn btn-primary" onClick={save}>حفظ</button>
+            <button className="btn btn-secondary" onClick={() => setShowModal(false)}>إلغاء</button>
+            <button className="btn btn-primary" onClick={save}>{editMode ? 'حفظ التعديل' : 'حفظ'}</button>
+          </div>
+        </Modal>
+      )}
+
+      {detail && (
+        <Modal title={detail.name} onClose={() => setDetail(null)}>
+          <div style={{display:'flex',gap:8,marginBottom:16}}><span className={`sev sev-${detail.severity}`}>{detail.severity}</span>{detail.category&&<span className="tag">{detail.category}</span>}</div>
+          {detail.description&&<div className="form-group"><label className="form-label">الشرح</label><div style={{fontFamily:'var(--font-mono)',fontSize:12,color:'var(--text2)',lineHeight:1.7}}>{detail.description}</div></div>}
+          {detail.code&&<><hr className="divider"/><div className="form-group"><label className="form-label">الكود</label><div className="code-block">{detail.code}</div></div></>}
+          {detail.exploit&&<><hr className="divider"/><div className="form-group"><label className="form-label">الاستغلال</label><div style={{fontFamily:'var(--font-mono)',fontSize:12,color:'#ff6b6b',lineHeight:1.7}}>{detail.exploit}</div></div></>}
+          {detail.fix&&<><hr className="divider"/><div className="form-group"><label className="form-label">الحل</label><div style={{fontFamily:'var(--font-mono)',fontSize:12,color:'var(--accent)',lineHeight:1.7}}>{detail.fix}</div></div></>}
+          <hr className="divider"/>
+          <div style={{display:'flex',gap:8}}>
+            <button className="btn btn-secondary btn-sm" onClick={e => openEdit(e, detail)}>تعديل</button>
+            <button className="btn btn-danger btn-sm" onClick={() => del(detail.id)}>حذف</button>
           </div>
         </Modal>
       )}
