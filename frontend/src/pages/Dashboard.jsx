@@ -17,16 +17,37 @@ const ROADMAP_PHASES = [
 
 const TIMER_KEY   = 'ap_timerStart'
 const RUNNING_KEY = 'ap_timerRunning'
-const PAUSED_KEY  = 'ap_timerPaused'   // ms elapsed when paused
+const PAUSED_KEY  = 'ap_timerPaused'
 const NOTE_KEY    = 'ap_timerNote'
 const LAPS_KEY    = 'ap_timerLaps'
+const DAY_HOUR_KEY = 'ap_dayStartHour'   // ← NEW: custom day boundary
+
+// ── Helper: get the "logical date" for a timestamp given a dayStartHour ──────
+// e.g. if dayStartHour=6, then 2025-01-15 05:30 → logical date = 2025-01-14
+function getLogicalDate(timestamp, dayStartHour) {
+  const d = new Date(timestamp)
+  const h = d.getHours()
+  if (h < dayStartHour) {
+    // Still in "yesterday's" logical day
+    d.setDate(d.getDate() - 1)
+  }
+  return d.toISOString().split('T')[0]
+}
+
+// ── Helper: format the day boundary for display ───────────────────────────────
+function fmtHour(h) {
+  if (h === 0)  return '12:00 AM (Midnight)'
+  if (h < 12)  return `${h}:00 AM`
+  if (h === 12) return '12:00 PM (Noon)'
+  return `${h - 12}:00 PM`
+}
 
 function fmt(ms) {
   const s = Math.floor(Math.abs(ms) / 1000)
   const h = Math.floor(s / 3600)
   const m = Math.floor((s % 3600) / 60)
   const sec = s % 60
-  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'00')}:${String(sec).padStart(2,'00')}`
 }
 
 function fmtShort(ms) {
@@ -38,29 +59,41 @@ function fmtShort(ms) {
 }
 
 export default function Dashboard({ notify, onStreakChange }) {
-  const [stats, setStats]       = useState(null)
-  const [running, setRunning]   = useState(false)
-  const [paused, setPaused]     = useState(false)
-  const [elapsed, setElapsed]   = useState(0)
-  const [startTime, setStartTime] = useState(null)
-  const [pausedAt, setPausedAt] = useState(0)   // total ms paused so far
-  const [note, setNote]         = useState('')
-  const [laps, setLaps]         = useState([])
-  const [loading, setLoading]   = useState(true)
-  const [intensity, setIntensity] = useState('medium') // low / medium / high
+  const [stats, setStats]           = useState(null)
+  const [running, setRunning]       = useState(false)
+  const [paused, setPaused]         = useState(false)
+  const [elapsed, setElapsed]       = useState(0)
+  const [startTime, setStartTime]   = useState(null)
+  const [pausedAt, setPausedAt]     = useState(0)
+  const [note, setNote]             = useState('')
+  const [laps, setLaps]             = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [intensity, setIntensity]   = useState('medium')
+  // ── NEW: day boundary setting ─────────────────────────────────────────────
+  const [dayStartHour, setDayStartHour] = useState(() => {
+    const saved = localStorage.getItem(DAY_HOUR_KEY)
+    return saved !== null ? parseInt(saved) : 0   // default: midnight (original behaviour)
+  })
+  const [showDaySettings, setShowDaySettings] = useState(false)
   const timerRef = useRef(null)
 
   // ── Load stats ──────────────────────────────────────────────
   const loadStats = async () => {
     try {
-      const res = await api.get('/stats')
+      // Pass dayStartHour so backend can compute streak correctly
+      const res = await api.get(`/stats?dayStartHour=${dayStartHour}`)
       setStats(res.data)
       onStreakChange(res.data.streak)
     } catch (e) { console.error(e) }
     setLoading(false)
   }
 
-  useEffect(() => { loadStats() }, [])
+  useEffect(() => { loadStats() }, [dayStartHour])
+
+  // ── Save dayStartHour preference ──────────────────────────────
+  useEffect(() => {
+    localStorage.setItem(DAY_HOUR_KEY, String(dayStartHour))
+  }, [dayStartHour])
 
   // ── Restore timer from localStorage ─────────────────────────
   useEffect(() => {
@@ -156,13 +189,20 @@ export default function Dashboard({ notify, onStreakChange }) {
     setRunning(false); setPaused(false)
     const finalElapsed = elapsed
     const hours = parseFloat((finalElapsed / 3600000).toFixed(2))
-    const date  = new Date().toISOString().split('T')[0]
+
+    // ── KEY FIX: use logical date based on dayStartHour ──────────
+    // Use the startTime (when the session BEGAN) to determine which logical day it belongs to
+    const logicalDate = getLogicalDate(startTime || Date.now(), dayStartHour)
+
     clearStorage()
     try {
       await api.post('/sessions', {
-        date, hours, note,
-        startedAt: new Date(startTime).toISOString(),
-        endedAt: new Date().toISOString(),
+        date: logicalDate,           // ← logical date, not raw ISO date
+        hours,
+        note,
+        startedAt:   new Date(startTime).toISOString(),
+        endedAt:     new Date().toISOString(),
+        dayStartHour,               // ← send setting to backend too
       })
       await loadStats()
       notify(`جلسة محفوظة: ${fmt(finalElapsed)} ✓`)
@@ -181,6 +221,25 @@ export default function Dashboard({ notify, onStreakChange }) {
   const tip = MENTOR_TIPS[new Date().getDay() % MENTOR_TIPS.length]
   const elapsedHours = elapsed / 3600000
   const intensityColor = intensity === 'high' ? 'var(--accent3)' : intensity === 'low' ? 'var(--accent2)' : 'var(--accent)'
+
+  // ── Current logical day info ──────────────────────────────────
+  const logicalToday    = getLogicalDate(Date.now(), dayStartHour)
+  const now             = new Date()
+  const currentHour     = now.getHours()
+  const isAfterMidnight = currentHour < dayStartHour  // e.g. it's 1 AM but day starts at 6 AM
+  const nextBoundary    = new Date(now)
+  if (isAfterMidnight) {
+    // boundary already passed yesterday, next one is today at dayStartHour
+    nextBoundary.setHours(dayStartHour, 0, 0, 0)
+  } else {
+    // next boundary is tomorrow at dayStartHour
+    nextBoundary.setDate(nextBoundary.getDate() + 1)
+    nextBoundary.setHours(dayStartHour, 0, 0, 0)
+  }
+  const msUntilReset = nextBoundary - now
+  const hUntilReset  = Math.floor(msUntilReset / 3600000)
+  const mUntilReset  = Math.floor((msUntilReset % 3600000) / 60000)
+
   if (loading) return <div className="loading">جاري التحميل...</div>
 
   const { totalHours, totalAudits, totalVulns, streak, weekly = [], heatmap = [], recentSessions = [], roadmapDone = 0 } = stats || {}
@@ -197,6 +256,94 @@ export default function Dashboard({ notify, onStreakChange }) {
       <div className="mentor-card">
         <div className="mentor-title">🎓 نصيحة الـ Mentor اليوم</div>
         <div className="mentor-tip" dangerouslySetInnerHTML={{__html: tip}} />
+      </div>
+
+      {/* ── DAY BOUNDARY INDICATOR ─────────────────────────────── */}
+      <div className="card" style={{marginBottom:16, padding:'14px 20px'}}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12}}>
+
+          {/* Left: current logical day info */}
+          <div style={{display:'flex', alignItems:'center', gap:16}}>
+            <div>
+              <div style={{fontFamily:'var(--font-mono)', fontSize:9, color:'var(--text3)', letterSpacing:2, marginBottom:4}}>
+                // LOGICAL TODAY
+              </div>
+              <div style={{fontFamily:'var(--font-code)', fontSize:14, color:'var(--accent)', fontWeight:700}}>
+                {logicalToday}
+              </div>
+              {isAfterMidnight && dayStartHour > 0 && (
+                <div style={{fontFamily:'var(--font-mono)', fontSize:9, color:'#ffc800', marginTop:2}}>
+                  ⚠ بعد midnight — لسه في يوم {logicalToday}
+                </div>
+              )}
+            </div>
+
+            <div style={{width:1, height:36, background:'rgba(255,255,255,.06)'}} />
+
+            <div>
+              <div style={{fontFamily:'var(--font-mono)', fontSize:9, color:'var(--text3)', letterSpacing:2, marginBottom:4}}>
+                // STREAK RESET IN
+              </div>
+              <div style={{fontFamily:'var(--font-code)', fontSize:14, color: hUntilReset < 2 ? '#ff6b6b' : 'var(--text2)', fontWeight:700}}>
+                {hUntilReset}h {mUntilReset}m
+              </div>
+              <div style={{fontFamily:'var(--font-mono)', fontSize:9, color:'var(--text3)', marginTop:2}}>
+                عند {fmtHour(dayStartHour)}
+              </div>
+            </div>
+
+            <div style={{width:1, height:36, background:'rgba(255,255,255,.06)'}} />
+
+            <div>
+              <div style={{fontFamily:'var(--font-mono)', fontSize:9, color:'var(--text3)', letterSpacing:2, marginBottom:4}}>
+                // DAY STARTS AT
+              </div>
+              <div style={{fontFamily:'var(--font-code)', fontSize:14, color:'var(--text2)', fontWeight:700}}>
+                {fmtHour(dayStartHour)}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: settings toggle */}
+          <button
+            className="t-btn t-btn-ghost"
+            onClick={() => setShowDaySettings(s => !s)}
+            style={{fontSize:10}}
+          >
+            ⚙ تعديل ميعاد بداية اليوم
+          </button>
+        </div>
+
+        {/* Day setting panel */}
+        {showDaySettings && (
+          <div style={{
+            marginTop:16, paddingTop:16,
+            borderTop:'1px solid rgba(255,255,255,.06)',
+          }}>
+            <div style={{fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)', marginBottom:12}}>
+              اليوم "يبدأ" الساعة كام؟ — الجلسات اللي بعد الـ midnight وقبل الوقت ده بتتحسب ليوم الأمس
+            </div>
+            <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+              {[0, 3, 4, 5, 6, 7, 8].map(h => (
+                <button
+                  key={h}
+                  className={`int-pill ${dayStartHour === h ? 'active' : ''}`}
+                  style={{'--ip-color': 'var(--accent)'}}
+                  onClick={() => {
+                    setDayStartHour(h)
+                    setShowDaySettings(false)
+                    notify(`اليوم هيبدأ من ${fmtHour(h)} ✓`)
+                  }}
+                >
+                  {h === 0 ? 'Midnight (default)' : fmtHour(h)}
+                </button>
+              ))}
+            </div>
+            <div style={{fontFamily:'var(--font-mono)', fontSize:9, color:'var(--text3)', marginTop:10}}>
+              💡 مثال: لو بتذاكر من 10 PM لـ 2 AM، اختار 4 AM أو 5 AM عشان الجلسة دي تتحسب ليوم واحد مش يومين
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid-4">
@@ -352,6 +499,28 @@ export default function Dashboard({ notify, onStreakChange }) {
           )}
         </div>
 
+        {/* Session logical date indicator — shown while timer is running */}
+        {running && startTime && (
+          <div style={{
+            marginBottom:16, padding:'8px 14px', borderRadius:8,
+            background:'rgba(255,255,255,.03)', border:'1px solid rgba(255,255,255,.06)',
+            display:'flex', gap:20, alignItems:'center', flexWrap:'wrap',
+          }}>
+            <div>
+              <span style={{fontFamily:'var(--font-mono)', fontSize:9, color:'var(--text3)', letterSpacing:1}}>LOGICAL DAY </span>
+              <span style={{fontFamily:'var(--font-code)', fontSize:11, color:'var(--accent)', fontWeight:700}}>
+                {getLogicalDate(startTime, dayStartHour)}
+              </span>
+            </div>
+            <div>
+              <span style={{fontFamily:'var(--font-mono)', fontSize:9, color:'var(--text3)', letterSpacing:1}}>STREAK COUNTS FOR </span>
+              <span style={{fontFamily:'var(--font-code)', fontSize:11, color:'var(--text2)', fontWeight:700}}>
+                {getLogicalDate(startTime, dayStartHour)}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Main timer area */}
         <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:40, padding:'0 0 28px'}}>
 
@@ -371,7 +540,6 @@ export default function Dashboard({ notify, onStreakChange }) {
                     strokeDashoffset={C - progress * C}
                     transform="rotate(-90 64 64)"
                   />
-                  {/* Center text inside ring */}
                   <text x="64" y="58" textAnchor="middle"
                     style={{fontFamily:'var(--font-mono)', fontSize:'10px', fill:'var(--text3)', letterSpacing:1}}>
                     {!running ? 'READY' : paused ? 'PAUSED' : 'FOCUS'}
