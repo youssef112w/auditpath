@@ -1,122 +1,149 @@
+// backend/src/routes/stats.js
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH: Streak calculation now respects a custom "day start hour".
+//
+// The frontend sends ?dayStartHour=N (default 0 = midnight).
+// Sessions stored with date = the "logical date" (already shifted by frontend).
+// The streak logic counts consecutive logical dates that have at least 1 session.
+// ─────────────────────────────────────────────────────────────────────────────
+
 const router = require('express').Router();
+const auth   = require('../middleware/auth');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const auth   = require('../middleware/auth');
 
+// ── Helper: get logical date string given a real timestamp and dayStartHour ──
+function getLogicalDate(timestamp, dayStartHour) {
+  const d = new Date(timestamp);
+  if (d.getHours() < dayStartHour) {
+    d.setDate(d.getDate() - 1);
+  }
+  return d.toISOString().split('T')[0];
+}
+
+// ── Helper: compute streak from an array of date strings ─────────────────────
+// dates: string[] of 'YYYY-MM-DD', may have duplicates, unsorted
+// todayStr: the current logical date (already shifted)
+function computeStreak(dates, todayStr) {
+  if (!dates || dates.length === 0) return 0;
+
+  // Unique set of dates that have sessions
+  const dateSet = new Set(dates);
+
+  let streak  = 0;
+  const cur   = new Date(todayStr + 'T12:00:00Z'); // use noon UTC to avoid DST edge cases
+
+  // Walk backwards day by day from today
+  while (true) {
+    const key = cur.toISOString().split('T')[0];
+    if (dateSet.has(key)) {
+      streak++;
+      cur.setUTCDate(cur.getUTCDate() - 1);
+    } else {
+      // If today itself has no session yet, don't break the streak —
+      // the user still has time until the day boundary.
+      if (key === todayStr && streak === 0) {
+        // Check yesterday before giving up
+        cur.setUTCDate(cur.getUTCDate() - 1);
+        const yesterday = cur.toISOString().split('T')[0];
+        if (dateSet.has(yesterday)) {
+          // Streak is still alive — count from yesterday
+          streak++;
+          cur.setUTCDate(cur.getUTCDate() - 1);
+          continue;
+        }
+      }
+      break;
+    }
+  }
+
+  return streak;
+}
+
+// GET /api/stats?dayStartHour=0
 router.get('/', auth, async (req, res) => {
   try {
-    const uid = req.userId;
-    const [
-      sessionAgg, auditCount, vulnCount,
-      challengeCount, solvedCount, journalCount,
-      roadmapDone,
-    ] = await Promise.all([
-      prisma.session.aggregate({ where:{userId:uid}, _sum:{hours:true}, _count:true }),
-      prisma.audit.count({ where:{userId:uid} }),
-      prisma.vulnerability.count({ where:{userId:uid} }),
-      prisma.challenge.count({ where:{userId:uid} }),
-      prisma.challenge.count({ where:{userId:uid, solved:true} }),
-      prisma.journal.count({ where:{userId:uid} }),
-      prisma.roadmapProgress.count({ where:{userId:uid, done:true} }),
+    const dayStartHour = parseInt(req.query.dayStartHour || '0');
+    const userId       = req.userId;
+
+    // ── Logical today ────────────────────────────────────────────────────────
+    const logicalToday = getLogicalDate(Date.now(), dayStartHour);
+
+    // ── Fetch all sessions for this user ─────────────────────────────────────
+    const sessions = await prisma.session.findMany({
+      where:   { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // ── Streak: use the `date` field stored on the session (already logical) ─
+    // If sessions were saved before this patch, their `date` field is the raw
+    // calendar date which might be wrong for late-night sessions.
+    // After the patch, the frontend sends the correct logical date.
+    const sessionDates = sessions.map(s => s.date);
+    const streak       = computeStreak(sessionDates, logicalToday);
+
+    // ── Total hours ───────────────────────────────────────────────────────────
+    const totalHours = sessions.reduce((sum, s) => sum + (s.hours || 0), 0);
+
+    // ── Weekly (last 7 logical days) ──────────────────────────────────────────
+    const weeklyMap = {};
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(logicalToday + 'T12:00:00Z');
+      d.setUTCDate(d.getUTCDate() - i);
+      const key = d.toISOString().split('T')[0];
+      weeklyMap[key] = 0;
+    }
+    sessions.forEach(s => {
+      if (weeklyMap.hasOwnProperty(s.date)) {
+        weeklyMap[s.date] += s.hours || 0;
+      }
+    });
+    const weekly = Object.entries(weeklyMap).map(([date, hours]) => ({ date, hours: +hours.toFixed(2) }));
+
+    // ── Heatmap (last 90 logical days) ───────────────────────────────────────
+    const heatmapMap = {};
+    for (let i = 89; i >= 0; i--) {
+      const d = new Date(logicalToday + 'T12:00:00Z');
+      d.setUTCDate(d.getUTCDate() - i);
+      heatmapMap[d.toISOString().split('T')[0]] = 0;
+    }
+    sessions.forEach(s => {
+      if (heatmapMap.hasOwnProperty(s.date)) {
+        heatmapMap[s.date] += s.hours || 0;
+      }
+    });
+    const heatmap = Object.entries(heatmapMap).map(([date, hours]) => ({ date, hours: +hours.toFixed(2) }));
+
+    // ── Other counts ──────────────────────────────────────────────────────────
+    const [totalAudits, totalVulns, roadmapDone] = await Promise.all([
+      prisma.audit.count({ where: { userId } }),
+      prisma.vuln.count({  where: { userId } }),
+      prisma.roadmapItem.count({ where: { userId, done: true } }),
     ]);
 
-    // حساب الـ streak من الـ sessions مباشرة
-    const allSessions = await prisma.session.findMany({
-      where: { userId: uid },
-      select: { date: true },
-      orderBy: { date: 'desc' },
-    });
-    const uniqueDates = [...new Set(allSessions.map(s => s.date))].sort((a,b) => b.localeCompare(a));
-    let current = 0, longest = 0;
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    if (uniqueDates.length > 0 && (uniqueDates[0] === today || uniqueDates[0] === yesterday)) {
-      current = 1;
-      for (let i = 1; i < uniqueDates.length; i++) {
-        const prev = new Date(uniqueDates[i-1]);
-        const curr = new Date(uniqueDates[i]);
-        const diff = (prev - curr) / 86400000;
-        if (diff === 1) { current++; } else { break; }
-      }
-    }
-    let tmp = 1;
-    for (let i = 1; i < uniqueDates.length; i++) {
-      const prev = new Date(uniqueDates[i-1]);
-      const curr = new Date(uniqueDates[i]);
-      const diff = (prev - curr) / 86400000;
-      if (diff === 1) { tmp++; longest = Math.max(longest, tmp); }
-      else { tmp = 1; }
-    }
-    longest = Math.max(longest, current);
-
-    const recentSessions = await prisma.session.findMany({
-      where:{userId:uid}, orderBy:{createdAt:'desc'},
-      take:10, select:{date:true,hours:true,note:true},
-    });
-
-    const todayStr = new Date().toISOString().split('T')[0];
-    const d90 = new Date(); d90.setDate(d90.getDate()-89);
-    const from90 = d90.toISOString().split('T')[0];
-    const heatmapRows = await prisma.session.findMany({
-      where:{userId:uid, date:{gte:from90, lte:todayStr}},
-      select:{date:true,hours:true},
-    });
-    const hMap = {};
-    heatmapRows.forEach(s=>{ hMap[s.date]=(hMap[s.date]||0)+s.hours; });
-    const heatmap = [];
-    for(let i=89;i>=0;i--){
-      const d=new Date(); d.setDate(d.getDate()-i);
-      const dt=d.toISOString().split('T')[0];
-      heatmap.push({date:dt, hours:parseFloat((hMap[dt]||0).toFixed(2))});
-    }
-
-    const d7 = new Date(); d7.setDate(d7.getDate()-6);
-    const from7 = d7.toISOString().split('T')[0];
-    const weeklyRows = await prisma.session.findMany({
-      where:{userId:uid, date:{gte:from7, lte:todayStr}},
-      select:{date:true,hours:true},
-    });
-    const wMap = {};
-    weeklyRows.forEach(s=>{ wMap[s.date]=(wMap[s.date]||0)+s.hours; });
-    const weekly = [];
-    for(let i=6;i>=0;i--){
-      const d=new Date(); d.setDate(d.getDate()-i);
-      const dt=d.toISOString().split('T')[0];
-      weekly.push({date:dt, hours:parseFloat((wMap[dt]||0).toFixed(2))});
-    }
+    // ── Recent sessions (last 10) ─────────────────────────────────────────────
+    const recentSessions = sessions.slice(0, 10).map(s => ({
+      date:  s.date,
+      hours: s.hours,
+      note:  s.note,
+    }));
 
     res.json({
-      totalHours:       sessionAgg._sum.hours||0,
-      sessionCount:     sessionAgg._count,
-      totalAudits:      auditCount,
-      totalVulns:       vulnCount,
-      challengeCount,
-      solvedChallenges: solvedCount,
-      journalCount,
-      streak:           current,
-      longestStreak:    longest,
-      roadmapDone,
-      totalRoadmapTasks:25,
-      recentSessions,
+      totalHours:     +totalHours.toFixed(2),
+      totalAudits,
+      totalVulns,
+      streak,
+      logicalToday,   // ← expose so frontend can display it
       weekly,
       heatmap,
+      recentSessions,
+      roadmapDone,
     });
-  } catch(err){
-    console.error(err);
-    res.status(500).json({error:err.message});
-  }
-});
 
-router.get('/heatmap', auth, async (req,res)=>{
-  try{
-    const sessions = await prisma.session.findMany({
-      where:{userId:req.userId},
-      select:{date:true,hours:true},
-    });
-    const map={};
-    sessions.forEach(s=>{ map[s.date]=(map[s.date]||0)+s.hours; });
-    res.json(map);
-  }catch(err){ res.status(500).json({error:err.message}); }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 module.exports = router;
