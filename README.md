@@ -65,8 +65,6 @@ Open `http://localhost:5173`
 
 ---
 
----
-
 ## 🤖 AI-Assisted Development
 
 Built with [Claude](https://anthropic.com) as a development partner —
