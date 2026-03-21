@@ -75,13 +75,6 @@ Open `http://localhost:5173`
 | 4 | Damn Vulnerable DeFi + DeFi Deep Dive | 4-6 weeks |
 | 5 | Code4rena Contests + Real Audits | ongoing |
 
----
-
-## Built with AI
-
-This project was built with [Claude](https://anthropic.com) (Anthropic) — from architecture and database design to refactoring and debugging.
-
-AI is a tool, not a replacement for understanding. Every decision in this project was made by a human. The AI accelerated execution.
 
 ---
 
