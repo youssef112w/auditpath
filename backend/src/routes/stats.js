@@ -8,9 +8,9 @@ router.get('/', auth, async (req, res) => {
   try {
     const uid = req.userId;
 
+    // ── Counts ───────────────────────────────────────────────────────────────
     const [
-      sessionAgg, auditCount, vulnCount,
-      roadmapDone,
+      sessionAgg, auditCount, vulnCount, roadmapDone,
     ] = await Promise.all([
       prisma.session.aggregate({ where:{ userId:uid }, _sum:{ hours:true }, _count:true }),
       prisma.audit.count({ where:{ userId:uid } }),
@@ -18,13 +18,14 @@ router.get('/', auth, async (req, res) => {
       prisma.roadmapProgress.count({ where:{ userId:uid, done:true } }),
     ]);
 
-    // ── Streak ───────────────────────────────────────────────────────────────
+    // ── All sessions for streak + weekly + heatmap ───────────────────────────
     const allSessions = await prisma.session.findMany({
       where:   { userId: uid },
-      select:  { date: true },
+      select:  { id: true, date: true, hours: true, note: true },
       orderBy: { date: 'desc' },
     });
 
+    // ── Streak ───────────────────────────────────────────────────────────────
     const uniqueDates = [...new Set(allSessions.map(s => s.date))].sort((a,b) => b.localeCompare(a));
     let current = 0, longest = 0;
     const today     = new Date().toISOString().split('T')[0];
@@ -57,19 +58,9 @@ router.get('/', auth, async (req, res) => {
       weeklyMap[d.toISOString().split('T')[0]] = 0;
     }
     allSessions.forEach(s => {
-      if (weeklyMap.hasOwnProperty(s.date)) weeklyMap[s.date]++;
+      if (weeklyMap.hasOwnProperty(s.date)) weeklyMap[s.date] += s.hours || 0;
     });
-
-    const weeklySessions = await prisma.session.findMany({
-      where:   { userId: uid, date: { in: Object.keys(weeklyMap) } },
-      select:  { date: true, hours: true },
-    });
-    const weeklyHrsMap = { ...weeklyMap };
-    Object.keys(weeklyHrsMap).forEach(k => weeklyHrsMap[k] = 0);
-    weeklySessions.forEach(s => {
-      if (weeklyHrsMap.hasOwnProperty(s.date)) weeklyHrsMap[s.date] += s.hours || 0;
-    });
-    const weekly = Object.entries(weeklyHrsMap).map(([date, hours]) => ({ date, hours: +hours.toFixed(2) }));
+    const weekly = Object.entries(weeklyMap).map(([date, hours]) => ({ date, hours: +hours.toFixed(2) }));
 
     // ── Heatmap (last 90 days) ───────────────────────────────────────────────
     const heatmapMap = {};
@@ -77,33 +68,13 @@ router.get('/', auth, async (req, res) => {
       const d = new Date(); d.setDate(d.getDate() - i);
       heatmapMap[d.toISOString().split('T')[0]] = 0;
     }
-    const heatmapSessions = await prisma.session.findMany({
-      where:  { userId: uid, date: { in: Object.keys(heatmapMap) } },
-      select: { date: true, hours: true },
-    });
-    heatmapSessions.forEach(s => {
+    allSessions.forEach(s => {
       if (heatmapMap.hasOwnProperty(s.date)) heatmapMap[s.date] += s.hours || 0;
     });
     const heatmap = Object.entries(heatmapMap).map(([date, hours]) => ({ date, hours: +hours.toFixed(2) }));
 
-    // ── Roadmap by phase ─────────────────────────────────────────────────────
-    const roadmapItems = await prisma.roadmapProgress.findMany({
-      where:  { userId: uid, done: true },
-      select: { phase: true },
-    });
-    const roadmapByPhase = {};
-    roadmapItems.forEach(r => {
-      roadmapByPhase[r.phase] = (roadmapByPhase[r.phase] || 0) + 1;
-    });
-
-    // ── Recent sessions — مع الـ id عشان الحذف يشتغل ──────────────────────
-    const recentRaw = await prisma.session.findMany({
-      where:   { userId: uid },
-      orderBy: { createdAt: 'desc' },
-      take:    10,
-      select:  { id: true, date: true, hours: true, note: true },
-    });
-    const recentSessions = recentRaw.map(s => ({
+    // ── Recent sessions (last 10) مع id للحذف ────────────────────────────────
+    const recentSessions = allSessions.slice(0, 10).map(s => ({
       id:    s.id,
       date:  s.date,
       hours: s.hours,
@@ -120,7 +91,7 @@ router.get('/', auth, async (req, res) => {
       heatmap,
       recentSessions,
       roadmapDone,
-      roadmapByPhase,
+      roadmapByPhase: {},   // placeholder — الـ schema مش عنده phase field
     });
 
   } catch (e) {
