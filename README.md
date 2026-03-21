@@ -75,7 +75,15 @@ Open `http://localhost:5173`
 | 4 | Damn Vulnerable DeFi + DeFi Deep Dive | 4-6 weeks |
 | 5 | Code4rena Contests + Real Audits | ongoing |
 
+---
 
+## 🤖 AI-Assisted Development
+
+Built with [Claude](https://anthropic.com) as a development partner —
+not to replace thinking, but to accelerate execution.
+
+Every architectural decision, every line reviewed, every bug traced — by a human.
+The AI wrote faster. The human wrote better.
 ---
 
 *Built for the journey: Smart Contract Auditor → Security Researcher* 🛡️
