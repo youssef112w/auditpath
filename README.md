@@ -65,16 +65,6 @@ Open `http://localhost:5173`
 
 ---
 
-## Roadmap
-
-| Phase | Focus | Duration |
-|-------|-------|----------|
-| 1 | Solidity Fundamentals + EVM Basics | 3-4 weeks |
-| 2 | Smart Contract Security Patterns | 3-4 weeks |
-| 3 | Ethernaut + Audit Tools | 4-6 weeks |
-| 4 | Damn Vulnerable DeFi + DeFi Deep Dive | 4-6 weeks |
-| 5 | Code4rena Contests + Real Audits | ongoing |
-
 ---
 
 ## 🤖 AI-Assisted Development
