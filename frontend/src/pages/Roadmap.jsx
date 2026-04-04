@@ -1,328 +1,229 @@
 // src/pages/Roadmap.jsx
-// 🎯 Smart Contract Security Auditor Roadmap
-// ✅ Done: Solidity + Foundry Fundamentals (Cyfrin)
-// 📍 Now: Phase 2 — Security Course (skip Advanced Foundry for now)
-// 🗓 Target: March 2027
+// 🎯 Smart Contract Security Auditor Roadmap — Redesigned
+// Target: Competitive International Smart Contract Auditor by March 2027
 
 import { useState, useEffect } from 'react'
 import api from '../api'
 
-// ─── DATA ────────────────────────────────────────────────────────────────────
+// ─── PHASES DATA ─────────────────────────────────────────────────────────────
 
 const PHASES = [
   {
     id: 1,
+    code: 'P1',
     title: 'Foundations',
+    subtitle: 'Blockchain · Solidity · Foundry',
     status: 'done',
     startDate: 'Mar 23, 2025',
-    endDate:   'Mar 31, 2026',
-    durationWeeks: null,
+    endDate: 'Mar 31, 2026',
     color: '#22c55e',
-    note: 'أنت خلصت الـ phase ده كامل. Solidity + Foundry Fundamentals على Cyfrin — أساس ممتاز.',
+    icon: '✓',
+    milestone: 'Solidity + Foundry Fundamentals على Cyfrin',
     tasks: [
-      { text: 'Blockchain & Ethereum basics', done: true, days: 0 },
-      { text: 'EVM architecture & opcodes', done: true, days: 0 },
-      { text: 'Solidity: syntax, mappings, modifiers, events', done: true, days: 0 },
-      { text: 'ERC20 / ERC721 token standards', done: true, days: 0 },
-      { text: 'Foundry Fundamentals (Cyfrin) — forge, cast, anvil, FundMe deploy', done: true, days: 0 },
+      { text: 'Blockchain & Ethereum basics', done: true },
+      { text: 'EVM architecture & opcodes', done: true },
+      { text: 'Solidity core: syntax, mappings, modifiers, events', done: true },
+      { text: 'ERC20 / ERC721 token standards', done: true },
+      { text: 'Foundry Fundamentals — forge, cast, anvil, FundMe', done: true },
     ],
   },
   {
     id: 2,
-    title: 'Write Code & Break It',
+    code: 'P2',
+    title: 'Cyfrin Security Course',
+    subtitle: 'The most important phase',
     status: 'active',
     startDate: 'Apr 4, 2026',
-    endDate:   'May 12, 2026',
-    durationWeeks: 5.5,
+    endDate: 'Jun 14, 2026',
     color: '#f97316',
-    decisionNote: `❓ سؤالك: Advanced Foundry كورس ولا Security Course على طول؟
-
-✅ الإجابة: Security Course على طول — والسبب بسيط:
-  • Advanced Foundry (fuzz/invariant) مش هيفيدك من غير context الـ security
-  • Cyfrin Security Course نفسه جواه Foundry advanced testing بشكل طبيعي
-  • Security بيديك الهدف — Foundry Advanced بيديك الأدوات اللي مش عارف هتستخدمها فين لو جيت قبله`,
-    note: 'كل يوم لازم يطلع منه كود على GitHub. مش هتبقى auditor كويس لو ماكتبتش كود كتير.',
+    icon: '⚡',
+    milestone: 'اكتب أول Audit Report حقيقي من الكورس',
+    note: 'ده القلب — كل حاجة تانية بتيجي بعده. Patrick Collins صمم الكورس ده بعد سنين auditing حقيقية.',
     tasks: [
       {
-        text: 'Advanced Solidity: inheritance, interfaces, libraries',
+        text: 'Section 1 — Introduction to Smart Contract Auditing',
         days: 4,
-        resource: 'https://solidity-by-example.org/',
-        tip: 'اكتب نظام فيه BaseContract و ChildContract. abstract contract vs interface — فهم الفرق مهم في الـ audit.',
-        howToStudy: `① solidity-by-example.org/interface — كود بس، مش محتاج إنجليزي كتير
-② اكتب الكود بإيدك وغير فيه عشان تفهمه
-③ Claude: "اشرح الفرق بين interface و abstract contract بالعربي"`,
-        deliverable: 'System فيه 3 contracts بيتكلموا مع بعض عن طريق interfaces',
-        criteria: 'تكتب ERC20 من الصفر بس interfaces — بدون OpenZeppelin',
+        resource: 'https://updraft.cyfrin.io/courses/security',
+        tip: 'افهم الـ Auditing Methodology الأول: Recon → Vulnerability ID → Reporting. هتستخدمها كل يوم.',
+        deliverable: 'notes/s1-intro.md — methodology + mindset',
+        criteria: 'تشرح الفرق بين security review و pen test',
       },
       {
-        text: 'SimpleBank — اكتبه، ادمره، اصلحه',
-        days: 4,
-        resource: 'https://book.getfoundry.sh/forge/tests',
-        tip: 'اكتب SimpleBank.sol فيه deposit, withdraw, getBalance. بعدين 10 tests. بعدين دور أنت على الثغرات فيه.',
-        howToStudy: `① اكتب SimpleBank بدماغك من غير ما تشوف أي مثال
-② لو وقفت: Claude "اكتبلي SimpleBank.sol فيه deposit و withdraw"
-③ بعد ما تكتبه: Claude "إيه الثغرات الممكنة في الكود ده؟"
-④ اكتب test لكل ثغرة لاقيتها`,
-        deliverable: 'SimpleBank.sol + SimpleBank.t.sol — على الأقل 10 tests',
-        criteria: 'Tests بتغطي: deposit, withdraw, overspend, zero amount, unauthorized access',
-      },
-      {
-        text: 'Reentrancy Attack — اكتبها واتهجم بيها',
+        text: 'Section 2 — Tooling: Slither, Aderyn, Foundry fuzzing',
         days: 5,
-        resource: 'https://swcregistry.io/docs/SWC-107',
-        tip: 'الـ DAO hack 2016 خسّر $60M بسببها. لازم تكتبها بإيدك مش تقرأ عنها بس.',
-        howToStudy: `① Claude: "اشرح ثغرة Reentrancy بالعربي مع مثال كود"
-② بعد ما تفهم — اكتب VulnerableBank.sol من غير ما تبص على الشرح
-③ اكتب AttackBank.sol يهاجمه
-④ forge test يثبت إن الهجوم شغال
-⑤ اكتب SafeBank.sol بالـ fix + test إن الهجوم بطل`,
-        deliverable: 'VulnerableBank.sol + AttackBank.sol + SafeBank.sol + Test.t.sol',
-        criteria: 'الـ test يثبت الفرق بين Vulnerable و Safe بشكل واضح',
+        resource: 'https://updraft.cyfrin.io/courses/security',
+        tip: 'شغّل Slither على كود حقيقي من أول يوم — متستناش تخلص الـ section.',
+        deliverable: 'tool-cheatsheet.md — commands + use cases',
+        criteria: 'تفرق بين true/false positive في Slither',
       },
       {
-        text: 'Access Control + Integer Overflow',
-        days: 3,
-        resource: 'https://swcregistry.io/docs/SWC-105',
-        tip: 'Access Control هي أكتر نوع ثغرة في الـ contests. Integer overflow مهم في كود pre-0.8.',
-        howToStudy: `① Claude: "اشرح Access Control vulnerability بالعربي"
-② Claude: "اشرح Integer Overflow في Solidity قبل 0.8 بالعربي"
-③ اكتب الثغرتين + الـ fix + tests`,
-        deliverable: 'عقد فيه 2 ثغرات متعمدين + عقد المهاجم + عقد آمن + tests',
-        criteria: 'تشرح: ليه الثغرة موجودة، ليه خطيرة، إيه الـ fix',
+        text: 'Section 3 — First Audit: PasswordStore protocol',
+        days: 7,
+        resource: 'https://updraft.cyfrin.io/courses/security',
+        tip: 'Audit صغير — المهم تكتب report احترافي بيه Severity + PoC + Fix لكل finding.',
+        deliverable: 'audit-reports/passwordstore-audit.md',
+        criteria: 'Report فيه على الأقل 3 findings بـ format كامل',
       },
       {
-        text: 'OpenZeppelin source code — اقرا، ماتقراش الدوكيومنتيشن',
-        days: 4,
-        resource: 'https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts',
-        tip: 'الفرق بين junior و senior auditor: الـ junior بيقرا الدوكيومنتيشن، الـ senior بيقرا الكود.',
-        howToStudy: `① افتح ReentrancyGuard.sol على GitHub
-② كل سطر مش فاهمه: Claude "اشرح السطر ده بالعربي"
-③ اكتب ملاحظاتك في notes.md بالعربي`,
-        deliverable: 'notes.md — تحليل Ownable.sol + ReentrancyGuard.sol + Pausable.sol',
-        criteria: 'تعرف تشرح ليه nonReentrant modifier بيستخدم uint بدل bool',
+        text: 'Section 4 — Deeper Auditing: Puppy Raffle (reentrancy + more)',
+        days: 10,
+        resource: 'https://updraft.cyfrin.io/courses/security',
+        tip: 'Puppy Raffle فيها reentrancy + mishandled ETH + weak randomness. أهم section في الكورس.',
+        deliverable: 'audit-reports/puppyraffle-audit.md',
+        criteria: 'تلاقي Reentrancy بنفسك قبل ما تشوف الـ solution',
       },
       {
-        text: 'Gas Optimization — افهم مش تحفظ',
-        days: 3,
-        resource: 'https://www.rareskills.io/post/gas-optimization',
-        tip: 'SSTORE vs MSTORE, storage packing. افهم ليه كل optimization شغالة.',
-        howToStudy: `① rareskills.io — إنجليزي بسيط، جرب تقراه أول
-② لو جملة مش فاهمها: Claude "ترجم وشرح"
-③ طبق كل optimization على SimpleBank بتاعك وقيس الفرق`,
-        deliverable: 'SimpleBank محسّن + forge snapshot قبل وبعد',
-        criteria: 'تشغل forge snapshot وتعرف تقرا النتيجة',
+        text: 'Section 5 — TSwap Protocol (DeFi + Price Manipulation)',
+        days: 10,
+        resource: 'https://updraft.cyfrin.io/courses/security',
+        tip: 'أول مرة تتعامل مع AMM وprice oracle manipulation. DeFi bugs = أكبر خسائر في Web3.',
+        deliverable: 'audit-reports/tswap-audit.md',
+        criteria: 'تشرح x*y=k وكيف ممكن يتاستغل',
+      },
+      {
+        text: 'Section 6 — Thunder Loan (Flash Loans + ERC-4626)',
+        days: 10,
+        resource: 'https://updraft.cyfrin.io/courses/security',
+        tip: 'Flash loans مش هجوم — هي feature. لما تفهم إزاي بيشتغلوا هتشوف الـ attack vectors.',
+        deliverable: 'audit-reports/thunderloan-audit.md',
+        criteria: 'تكتب PoC لـ flash loan attack يشتغل في forge test',
+      },
+      {
+        text: 'Section 7 — Boss Level: Bridge & Governance Attacks',
+        days: 14,
+        resource: 'https://updraft.cyfrin.io/courses/security',
+        tip: 'Cross-chain bridges خسرت مليارات. هتتعلم ليه.',
+        deliverable: 'audit-reports/bridge-audit.md',
+        criteria: 'تشرح ليه Bridge protocols أخطر من Simple DeFi',
       },
     ],
   },
   {
     id: 3,
-    title: 'Auditing Skills',
+    code: 'P3',
+    title: 'CTF + First Flights',
+    subtitle: 'Practice → Real Audits',
     status: 'upcoming',
-    startDate: 'May 13, 2026',
-    endDate:   'Jun 16, 2026',
-    durationWeeks: 5,
-    color: '#eab308',
-    note: 'دلوقتي بتبدأ تفكر زي الـ auditor. Cyfrin Security Course هو أهم حاجة في الـ phase دي — خليه أولوية.',
+    startDate: 'Jun 15, 2026',
+    endDate: 'Aug 31, 2026',
+    color: '#3b82f6',
+    icon: '🎯',
+    milestone: 'أول Valid Finding في CodeHawks First Flight',
+    note: 'الفرق بين من يدرس ومن يتدرب. هنا بتتحول من Student لـ Auditor.',
     tasks: [
       {
-        text: 'Cyfrin Security & Auditing Course — الأهم في الـ roadmap',
+        text: 'Ethernaut CTF — Level 1 → 20',
         days: 14,
-        resource: 'https://updraft.cyfrin.io/courses/security',
-        tip: 'Patrick Collins عمل الكورس ده بعد سنين من الـ auditing. أفضل مصدر مجاني في الـ security.',
-        howToStudy: `① كل درس: شاهد 5 دقايق بدون توقف عشان تاخد فكرة
-② ارجع للأول وشاهد بالتفصيل — pause بعد كل concept
-③ Claude: "اشرح [الموضوع] بالعربي مع مثال كود"
-④ المعدل: درسين يومياً = خلاص في أسبوعين`,
-        deliverable: 'الكورس كامل + notes لكل section + audit report للـ protocol في الكورس',
-        criteria: 'تكتب audit report كامل للـ protocol اللي في الكورس',
-      },
-      {
-        text: 'Slither static analysis',
-        days: 3,
-        resource: 'https://github.com/crytic/slither',
-        tip: 'الـ auditor الشاطر بيفهم نتايج Slither ومش بيكتفي بيها.',
-        howToStudy: `① Claude: "ازاي أثبت Slither على [نظامك]؟"
-② شغّل على كل العقود اللي كتبتها
-③ كل warning: Claude "إيه المقصود بده؟"
-④ قرر: true positive ولا false positive؟`,
-        deliverable: 'slither-report.md على كل عقد كتبته',
-        criteria: 'تفرق بين true positive و false positive',
-      },
-      {
-        text: 'Ethernaut CTF — Level 1 → 15',
-        days: 8,
         resource: 'https://ethernaut.openzeppelin.com/',
-        tip: 'متبصش على الـ solution إلا بعد ما تحاول ساعة على الأقل. الألم ده هو التعلم.',
-        howToStudy: `① كل level: Claude "ترجم وشرح المطلوب في Level [X]"
-② حاول من غير hints لمدة ساعة
-③ لو وقفت: Claude "ديني hint بدون solution كامل"
-④ اكتب write-up بالعربي لكل level`,
-        deliverable: '15 write-up: الثغرة + الاستغلال + الـ fix',
-        criteria: 'تحل Level 10 (Reentrancy) و Level 11 (Elevator) بدون hints',
+        tip: 'متبصش على solution إلا بعد ساعة محاولة. الألم ده هو التعلم.',
+        deliverable: '20 write-ups في writeups/ folder على GitHub',
+        criteria: 'تحل Reentrancy + King + Elevator بدون hints',
       },
       {
-        text: 'Audit Report Writing — اكتب report محترف',
-        days: 4,
-        resource: 'https://docs.codehawks.com/hawks-auditors/how-to-write-and-submit-a-finding',
-        tip: 'الـ audit report مش قائمة bugs — ده وثيقة تقنية. لازم فيه: Description, Impact, PoC, Recommendation.',
-        howToStudy: `① Claude: "إيه الـ template الاحترافي لكتابة audit finding؟"
-② اكتب template واطبقه على finding من Ethernaut
-③ Claude: "راجع الـ finding ده وقولي إيه الناقص"`,
-        deliverable: 'Template جاهز لكل finding + طبّقه على 3 vulnerabilities',
-        criteria: 'كل finding فيه: severity, description, impact, PoC, fix',
+        text: 'Damn Vulnerable DeFi — First 8 Challenges',
+        days: 12,
+        resource: 'https://www.damnvulnerabledefi.xyz/',
+        tip: 'أصعب من Ethernaut بكتير. Level 1 (Unstoppable) بيعلمك Flash Loans.',
+        deliverable: '8 solutions + write-ups بالعربي',
+        criteria: 'تحل Unstoppable + Naive Receiver بدون solution',
       },
       {
-        text: 'قرا أول Audit Report حقيقي',
-        days: 4,
-        resource: 'https://github.com/trailofbits/publications/tree/master/reviews',
-        tip: 'مش هتفهم كل حاجة من أول مرة وده طبيعي. المهم تفهم format التقرير.',
-        howToStudy: `① ابدأ بـ CodeHawks First Flight report — أسهل من Trail of Bits
-② كل finding: Claude "اشرح الـ finding ده بالعربي"
-③ اكتبه بكلامك في report-analysis.md`,
-        deliverable: 'report-analysis.md — كل finding مع تحليلك',
-        criteria: 'تشرح ليه finding اتصنف Critical مش Medium',
+        text: 'CodeHawks First Flight #1 — Audit + Report',
+        days: 10,
+        resource: 'https://www.codehawks.com/first-flights',
+        tip: 'اختار First Flight قديم عنده results — قيس نفسك على الـ official findings.',
+        deliverable: 'audit-reports/first-flight-1.md + gap-analysis.md',
+        criteria: 'Finding واحد صح على الأقل مش false positive',
+      },
+      {
+        text: 'CodeHawks First Flight #2 + Gap Analysis',
+        days: 10,
+        resource: 'https://www.codehawks.com/first-flights',
+        tip: 'لكل finding فاتك: اسأل "ليه فاتني؟" — ده أهم سؤال في المرحلة دي.',
+        deliverable: 'audit-reports/first-flight-2.md + patterns.md',
+        criteria: 'تحدد 3 أنواع ثغرات ما بتشوفهاش وليه',
+      },
+      {
+        text: 'Deep DeFi: Uniswap V2 + Oracle Manipulation',
+        days: 12,
+        resource: 'https://www.rareskills.io/uniswap-v2-book',
+        tip: 'Beanstalk + Mango Markets + Euler Finance — كل واحدة درس مختلف.',
+        deliverable: 'defi-deep-dive.md — AMM mechanics + 3 real attack analyses',
+        criteria: 'تشرح كل حادثة في 5 دقايق بدون ورق',
       },
     ],
   },
   {
     id: 4,
-    title: 'First Real Audit',
+    code: 'P4',
+    title: 'Compete & Get Hired',
+    subtitle: 'Portfolio → Income → Career',
     status: 'upcoming',
-    startDate: 'Jun 17, 2026',
-    endDate:   'Jul 16, 2026',
-    durationWeeks: 4.5,
-    color: '#3b82f6',
-    note: 'أول audit على كود مش كتبته أنت. الـ auditor الجيد بيصرف 80% من وقته يفهم الكود و20% بيدور على ثغرات.',
-    tasks: [
-      {
-        text: 'CodeHawks First Flights — أول 2 audits',
-        days: 10,
-        resource: 'https://www.codehawks.com/first-flights',
-        tip: 'اختار First Flight قديم عنده results معلنة — عشان تقدر تقيس نفسك.',
-        howToStudy: `① اختار Flight صغير — تحت 500 سطر كود
-② Claude: "اشرح الـ protocol ده بالعربي"
-③ اقرا كل function وسأل نفسك: مين ممكن يستغلها؟
-④ اكتب findings في report format ثم قارن بـ official results`,
-        deliverable: 'audit-report-1.md + gap-analysis.md',
-        criteria: 'Finding واحد صح على الأقل مش false positive',
-      },
-      {
-        text: 'Gap Analysis — الـ findings اللي فاتتك أهم',
-        days: 3,
-        resource: 'https://www.codehawks.com/first-flights',
-        tip: 'كل finding فاتك: اسأل نفسك "ليه؟" مش بس "إيه؟"',
-        howToStudy: `① خد كل finding في الـ official report مش لقيته
-② Claude: "اشرح الـ finding ده بالعربي — ليه صعب تشوفه؟"
-③ اكتب: "فاتني لأن..." لكل finding`,
-        deliverable: 'gap-analysis.md: كل finding فاتك + سبب فواته',
-        criteria: 'تحدد 3 أنواع ثغرات مش بتلاقيها وتعرف ليه',
-      },
-      {
-        text: 'Damn Vulnerable DeFi — أول 5 challenges',
-        days: 5,
-        resource: 'https://www.damnvulnerabledefi.xyz/',
-        tip: 'أصعب بكتير من Ethernaut. Level 1 (Unstoppable) بيعلمك flash loans.',
-        howToStudy: `① Claude: "اشرح Damn Vulnerable DeFi Level 1 بالعربي"
-② ساعة ونص محاولة بدون hints
-③ لو وقفت: Claude "hint بدون solution كامل"
-④ write-up بالعربي بعد كل challenge`,
-        deliverable: '5 solutions + write-ups',
-        criteria: 'تحل Unstoppable + Naive Receiver بدون solution',
-      },
-      {
-        text: 'DeFi Deep Dive: Uniswap V2 AMM mechanics',
-        days: 5,
-        resource: 'https://www.rareskills.io/uniswap-v2-book',
-        tip: 'لما تفهم x*y=k هتبدأ تشوف attack vectors في كل AMM.',
-        howToStudy: `① rareskills.io/uniswap-v2-book — Chapter 1 → 4
-② Claude: "اشرح x*y=k بمثال أرقام بالعربي"
-③ اكتب شرحك بالعربي — لو قدرت تشرحه تبقى فهمته`,
-        deliverable: 'defi-notes.md — AMM mechanics + أشهر attack vectors',
-        criteria: 'تشرح price slippage وكيف ممكن يتاستغل',
-      },
-      {
-        text: 'Oracle Manipulation + Flash Loan Attacks — 3 حوادث',
-        days: 4,
-        resource: 'https://blog.openzeppelin.com/oracle-manipulation-attacks',
-        tip: 'Beanstalk, Mango Markets, Euler Finance — كل واحدة فيها درس مختلف.',
-        howToStudy: `① Claude: "اشرح Beanstalk hack بالعربي"
-② نفس الشيء لـ Mango Markets و Euler Finance
-③ اكتب: الثغرة + الاستغلال + الخسارة + الـ fix`,
-        deliverable: 'defi-attacks.md — تحليل 3 حوادث حقيقية',
-        criteria: 'تشرح كل حادثة في 5 دقايق لحد تاني',
-      },
-    ],
-  },
-  {
-    id: 5,
-    title: 'Compete & Build Reputation',
-    status: 'upcoming',
-    startDate: 'Jul 17, 2026',
-    endDate:   'Mar 2027',
-    durationWeeks: null,
+    startDate: 'Sep 1, 2026',
+    endDate: 'Mar 2027',
     color: '#a855f7',
-    note: 'مش هتكسب من أول contest — ده طبيعي. الهدف إنك تشارك وتتعلم. كل finding valid هو إنجاز حقيقي.',
+    icon: '🏆',
+    milestone: 'أول Remote Job Offer أو $500 من bug bounty',
+    note: 'مش هتكسب من أول contest — ده طبيعي. كل finding valid هو إنجاز وخطوة للهدف.',
     tasks: [
       {
         text: 'Competitive Audit على CodeHawks',
-        days: 14,
+        days: 21,
         resource: 'https://www.codehawks.com/',
-        tip: 'اختار contest الـ codebase بتاعه صغير — تحت 500 سطر. افهم الـ business logic الأول.',
-        howToStudy: `① اقرا الـ README الأول
-② شغّل Slither — افهم النتايج
-③ بعدين دور على logic bugs مش syntax issues`,
-        deliverable: 'Findings submitted في contest حقيقي',
+        tip: 'اختار contests بـ codebase صغير. افهم Business Logic الأول قبل ما تدور على ثغرات.',
+        deliverable: 'Findings submitted في أول contest حقيقي',
         criteria: 'Finding واحد على الأقل submitted',
       },
       {
-        text: 'GitHub Portfolio — CV بتاعك في الـ web3',
-        days: 5,
-        resource: 'https://github.com/',
-        tip: 'الـ portfolio هو أهم حاجة في أي application. لازم يبين تفكيرك مش بس الكود.',
-        howToStudy: `① audit-portfolio repo — كل العقود + الـ reports + الـ CTF solutions
-② كل project: README بيشرح الـ vulnerability والـ fix
-③ Claude: "ساعدني أكتب README لـ smart contract auditor مبتدئ"`,
-        deliverable: 'audit-portfolio repo واضح ومنظم على GitHub',
-        criteria: 'الـ README بيشرح مستواك بوضوح',
+        text: 'Sherlock + Code4rena Contests',
+        days: 30,
+        resource: 'https://www.sherlock.xyz/',
+        tip: 'Sherlock بيديك escalation feedback على findings — أفضل بكتير للتعلم.',
+        deliverable: 'شارك في 3 contests مختلفين',
+        criteria: 'تكتب post-mortem لكل contest تحلل فيه أداءك',
       },
       {
         text: 'Immunefi Bug Bounties',
-        days: 20,
+        days: 30,
         resource: 'https://immunefi.com/',
-        tip: 'ابدأ بالـ protocols الصغيرة. حتى الـ low severity مهمة للـ portfolio.',
-        howToStudy: `① ابحث عن bounties بـ low/medium scope
-② Claude: "ترجم وشرح الـ scope ده"
-③ نفس methodology الـ audit — افهم الكود الأول`,
+        tip: 'ابدأ بالـ protocols الصغيرة — low/medium scope. حتى low severity مهمة للـ portfolio.',
         deliverable: 'Report واحد مبعوت على Immunefi',
-        criteria: 'أي report مبعوت — مش شرط مقبول',
+        criteria: 'أي valid submission — مش شرط مقبول',
       },
       {
-        text: 'Apply للـ Junior Auditor positions',
+        text: 'GitHub Audit Portfolio — CV بتاعك في Web3',
+        days: 7,
+        resource: 'https://github.com/',
+        tip: 'الـ portfolio أهم من الـ CV في Web3. لازم يبين تفكيرك مش بس الكود.',
+        deliverable: 'audit-portfolio repo واضح: CTF solutions + audit reports + write-ups',
+        criteria: 'أي junior auditor يشوف الـ repo يفهم مستواك',
+      },
+      {
+        text: 'Apply: Spearbit + Trail of Bits + Cyfrin + Sherlock',
         days: 14,
-        resource: 'https://www.codehawks.com/',
-        tip: 'Trail of Bits, Sherlock, Spearbit, Code4rena كلهم بيقبلوا remotes. بحلول مارس 2027 عندك portfolio قوي.',
-        howToStudy: `① Claude: "ساعدني أكتب cover letter لـ smart contract auditor junior position"
-② الـ GitHub Portfolio هو أهم حاجة في الـ application
-③ Twitter/X presence بيفتح أبواب كتير`,
-        deliverable: '5 applications مبعوتة',
-        criteria: 'رد إيجابي واحد على الأقل',
+        resource: 'https://spearbit.com/',
+        tip: 'Remote positions دي. الـ GitHub portfolio هو الـ application — مش الـ CV.',
+        deliverable: '5 applications + follow-up على X/Twitter',
+        criteria: 'رد إيجابي واحد أو interview',
       },
     ],
   },
 ]
 
 const RESOURCES = [
-  { label: 'Cyfrin Security Course',  url: 'https://updraft.cyfrin.io/courses/security',                                       tag: 'Priority' },
-  { label: 'Cyfrin Foundry Course',   url: 'https://updraft.cyfrin.io/courses/foundry',                                        tag: 'Done'     },
-  { label: 'Ethernaut CTF',           url: 'https://ethernaut.openzeppelin.com',                                               tag: 'Practice' },
-  { label: 'Damn Vulnerable DeFi',    url: 'https://www.damnvulnerabledefi.xyz',                                               tag: 'Practice' },
-  { label: 'CodeHawks',               url: 'https://www.codehawks.com',                                                        tag: 'Compete'  },
-  { label: 'Immunefi',                url: 'https://immunefi.com',                                                             tag: 'Compete'  },
-  { label: 'SWC Registry',            url: 'https://swcregistry.io',                                                           tag: 'Reference'},
-  { label: 'OpenZeppelin Contracts',  url: 'https://github.com/OpenZeppelin/openzeppelin-contracts',                           tag: 'Reference'},
-  { label: 'Solidity by Example',     url: 'https://solidity-by-example.org',                                                  tag: 'Learn'    },
-  { label: 'RareSkills Blog',         url: 'https://www.rareskills.io',                                                        tag: 'Learn'    },
-  { label: 'Foundry Book',            url: 'https://book.getfoundry.sh',                                                       tag: 'Docs'     },
+  { label: 'Cyfrin Security Course', url: 'https://updraft.cyfrin.io/courses/security', tag: 'Priority' },
+  { label: 'Cyfrin Foundry Course', url: 'https://updraft.cyfrin.io/courses/foundry', tag: 'Done' },
+  { label: 'Ethernaut CTF', url: 'https://ethernaut.openzeppelin.com', tag: 'Practice' },
+  { label: 'Damn Vulnerable DeFi', url: 'https://www.damnvulnerabledefi.xyz', tag: 'Practice' },
+  { label: 'CodeHawks', url: 'https://www.codehawks.com', tag: 'Compete' },
+  { label: 'Sherlock', url: 'https://www.sherlock.xyz', tag: 'Compete' },
+  { label: 'Code4rena', url: 'https://code4rena.com', tag: 'Compete' },
+  { label: 'Immunefi', url: 'https://immunefi.com', tag: 'Compete' },
+  { label: 'RareSkills Blog', url: 'https://www.rareskills.io', tag: 'Learn' },
+  { label: 'SWC Registry', url: 'https://swcregistry.io', tag: 'Reference' },
+  { label: 'OpenZeppelin Contracts', url: 'https://github.com/OpenZeppelin/openzeppelin-contracts', tag: 'Reference' },
+  { label: 'Solodit (Past Findings)', url: 'https://solodit.xyz', tag: 'Reference' },
+  { label: 'Foundry Book', url: 'https://book.getfoundry.sh', tag: 'Docs' },
 ]
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -335,12 +236,12 @@ function daysUntil(dateStr) {
   const target = new Date(+year, months[month], +day)
   const diff = Math.ceil((target - new Date()) / 86400000)
   if (diff < 0)  return { label: `${Math.abs(diff)}d overdue`, color: '#ef4444' }
-  if (diff === 0) return { label: 'Due today!',                 color: '#f59e0b' }
-  if (diff <= 7)  return { label: `${diff}d left`,              color: '#f59e0b' }
-  return              { label: `${diff}d left`,              color: '#6b7280'  }
+  if (diff === 0) return { label: 'Due today!', color: '#f59e0b' }
+  if (diff <= 14) return { label: `${diff}d left`, color: '#f59e0b' }
+  return { label: `${diff}d left`, color: '#6b7280' }
 }
 
-const STATUS_STYLE = {
+const STATUS_CFG = {
   done:     { label: 'Done',     bg: '#14532d22', border: '#22c55e40', color: '#22c55e' },
   active:   { label: 'Active',   bg: '#7c2d1222', border: '#f9731640', color: '#f97316' },
   upcoming: { label: 'Upcoming', bg: 'var(--color-background-secondary)', border: 'var(--color-border-tertiary)', color: 'var(--color-text-tertiary)' },
@@ -352,7 +253,7 @@ const TAG_COLOR = {
   Practice:  { bg: '#1e1b4b22', border: '#818cf840', text: '#818cf8' },
   Compete:   { bg: '#4c1d9522', border: '#a855f740', text: '#a855f7' },
   Reference: { bg: 'var(--color-background-secondary)', border: 'var(--color-border-tertiary)', text: 'var(--color-text-secondary)' },
-  Learn:     { bg: '#0c2a2a',   border: '#2dd4bf40', text: '#2dd4bf' },
+  Learn:     { bg: '#0c2a2a', border: '#2dd4bf40', text: '#2dd4bf' },
   Docs:      { bg: 'var(--color-background-secondary)', border: 'var(--color-border-tertiary)', text: 'var(--color-text-tertiary)' },
 }
 
@@ -360,109 +261,99 @@ const TAG_COLOR = {
 
 function TaskRow({ task, isDone, onToggle, accent, locked }) {
   const [open, setOpen] = useState(false)
+  const hasDetails = task.tip || task.deliverable || task.criteria || task.resource
 
   return (
-    <div style={{ marginBottom: 3 }}>
+    <div style={{ marginBottom: 6 }}>
+      {/* main row */}
       <div style={{
         display: 'flex', alignItems: 'flex-start', gap: 10,
         padding: '9px 10px', borderRadius: 8,
         background: open ? 'var(--color-background-secondary)' : 'transparent',
-        transition: 'background .12s',
+        border: `0.5px solid ${open ? accent + '30' : 'transparent'}`,
+        transition: 'all .15s',
       }}>
         {/* checkbox */}
         <button
+          disabled={locked}
           onClick={locked ? undefined : onToggle}
           style={{
-            width: 16, height: 16, borderRadius: 4, flexShrink: 0, marginTop: 1,
-            border: `1.5px solid ${isDone ? accent : 'var(--color-border-secondary)'}`,
+            width: 18, height: 18, borderRadius: 4, flexShrink: 0, marginTop: 1,
+            border: isDone ? 'none' : `1.5px solid ${locked ? 'var(--color-border-secondary)' : accent + '80'}`,
             background: isDone ? accent : 'transparent',
-            cursor: locked ? 'not-allowed' : 'pointer',
+            cursor: locked ? 'default' : 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 0, outline: 'none',
+            padding: 0,
           }}
         >
-          {isDone && (
-            <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-              <path d="M1 3.5L3.5 6L8 1" stroke="#000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          )}
+          {isDone && <span style={{ color: '#000', fontSize: 11, fontWeight: 700 }}>✓</span>}
         </button>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            onClick={locked ? undefined : () => task.resource && setOpen(o => !o)}
-            style={{
-              fontSize: 13, lineHeight: 1.5,
-              cursor: locked || !task.resource ? 'default' : 'pointer',
-              color: isDone ? 'var(--color-text-tertiary)' : 'var(--color-text-primary)',
-              textDecoration: isDone ? 'line-through' : 'none',
-            }}
-          >
+          <div style={{
+            fontSize: 13, lineHeight: 1.4,
+            color: isDone ? 'var(--color-text-tertiary)' : locked ? 'var(--color-text-tertiary)' : 'var(--color-text-primary)',
+            textDecoration: isDone ? 'line-through' : 'none',
+          }}>
             {task.text}
           </div>
           <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
             {task.days > 0 && (
               <span style={{
-                fontSize: 11, padding: '1px 7px', borderRadius: 99,
+                fontSize: 10, padding: '1px 6px', borderRadius: 99,
                 background: 'var(--color-background-secondary)',
                 border: '0.5px solid var(--color-border-tertiary)',
-                color: 'var(--color-text-tertiary)',
-                fontFamily: 'var(--font-mono)',
-              }}>
-                {task.days}d
-              </span>
+                color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)',
+              }}>~{task.days}d</span>
             )}
-            {task.resource && !locked && (
+            {hasDetails && !locked && (
               <button
                 onClick={() => setOpen(o => !o)}
                 style={{
-                  fontSize: 11, padding: '1px 7px', borderRadius: 99,
+                  fontSize: 10, padding: '1px 7px', borderRadius: 99,
                   border: `0.5px solid ${accent}55`, background: 'transparent',
                   color: accent, cursor: 'pointer', outline: 'none',
                 }}
               >
-                {open ? 'hide ▲' : 'details ▼'}
+                {open ? 'close ▲' : 'guide ▼'}
               </button>
             )}
           </div>
         </div>
       </div>
 
+      {/* expandable details */}
       {open && !locked && (
         <div style={{
-          margin: '2px 0 8px 26px',
+          margin: '2px 0 4px 28px',
           background: 'var(--color-background-secondary)',
-          border: '0.5px solid var(--color-border-tertiary)',
-          borderRadius: 10, padding: '12px 14px',
+          border: `0.5px solid ${accent}25`,
+          borderLeft: `2px solid ${accent}`,
+          borderRadius: '0 8px 8px 0',
+          padding: '12px 14px',
           display: 'flex', flexDirection: 'column', gap: 10,
         }}>
           {task.tip && (
             <div>
-              <div style={{ fontSize: 11, fontWeight: 500, color: '#f59e0b', marginBottom: 3 }}>Tip</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: '#f59e0b', letterSpacing: '.04em', marginBottom: 3 }}>TIP</div>
               <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.7 }}>{task.tip}</div>
-            </div>
-          )}
-          {task.howToStudy && (
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 500, color: accent, marginBottom: 3 }}>How to study</div>
-              <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.9, whiteSpace: 'pre-line' }}>{task.howToStudy}</div>
             </div>
           )}
           {task.deliverable && (
             <div>
-              <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 3 }}>Deliverable</div>
-              <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.7 }}>{task.deliverable}</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: accent, letterSpacing: '.04em', marginBottom: 3 }}>DELIVERABLE</div>
+              <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.7, fontFamily: 'var(--font-mono)' }}>{task.deliverable}</div>
             </div>
           )}
           {task.criteria && (
             <div>
-              <div style={{ fontSize: 11, fontWeight: 500, color: '#22c55e', marginBottom: 3 }}>Done when</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: '#22c55e', letterSpacing: '.04em', marginBottom: 3 }}>DONE WHEN</div>
               <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.7 }}>{task.criteria}</div>
             </div>
           )}
           {task.resource && (
             <a href={task.resource} target="_blank" rel="noreferrer"
-              style={{ fontSize: 12, color: accent, textDecoration: 'none' }}>
+              style={{ fontSize: 11, color: accent, textDecoration: 'none', fontFamily: 'var(--font-mono)' }}>
               → {task.resource}
             </a>
           )}
@@ -476,8 +367,9 @@ function TaskRow({ task, isDone, onToggle, accent, locked }) {
 
 function PhaseCard({ phase, roadmap, onToggle }) {
   const [open, setOpen] = useState(phase.status === 'active')
-  const st = STATUS_STYLE[phase.status]
+  const st = STATUS_CFG[phase.status]
   const locked = phase.status === 'upcoming'
+
   const doneTasks = phase.tasks.filter((_, i) =>
     phase.status === 'done' || roadmap[`${phase.id}_${i}`]
   ).length
@@ -487,100 +379,100 @@ function PhaseCard({ phase, roadmap, onToggle }) {
   return (
     <div style={{
       background: 'var(--color-background-primary)',
-      border: `0.5px solid ${phase.status === 'active' ? phase.color + '55' : 'var(--color-border-tertiary)'}`,
+      border: `0.5px solid ${phase.status === 'active' ? phase.color + '60' : 'var(--color-border-tertiary)'}`,
       borderRadius: 12, overflow: 'hidden', marginBottom: 10,
+      opacity: locked ? 0.75 : 1,
+      transition: 'opacity .2s',
     }}>
-      {/* top accent bar */}
-      <div style={{ height: 3, background: phase.color, opacity: locked ? 0.2 : 1 }} />
+      {/* accent bar */}
+      <div style={{ height: 3, background: phase.color, opacity: locked ? 0.3 : 1 }} />
 
       {/* header */}
       <div
         onClick={() => setOpen(o => !o)}
         style={{ padding: '14px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14 }}
       >
+        {/* phase icon */}
         <div style={{
-          width: 34, height: 34, borderRadius: 8, flexShrink: 0,
-          background: locked ? 'var(--color-background-secondary)' : phase.color + '18',
+          width: 38, height: 38, borderRadius: 9, flexShrink: 0,
+          background: locked ? 'var(--color-background-secondary)' : phase.color + '15',
           border: `1px solid ${locked ? 'var(--color-border-tertiary)' : phase.color + '40'}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 13, fontWeight: 500,
+          fontSize: phase.status === 'done' ? 16 : 12,
           color: locked ? 'var(--color-text-tertiary)' : phase.color,
+          fontWeight: 600,
         }}>
-          {phase.id}
+          {phase.status === 'done' ? '✓' : phase.id}
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{
-              fontSize: 15, fontWeight: 500,
-              color: locked ? 'var(--color-text-secondary)' : 'var(--color-text-primary)',
-            }}>
+            <span style={{ fontSize: 15, fontWeight: 600, color: locked ? 'var(--color-text-secondary)' : 'var(--color-text-primary)' }}>
               {phase.title}
             </span>
             <span style={{
-              fontSize: 11, padding: '1px 8px', borderRadius: 99,
+              fontSize: 10, padding: '1px 8px', borderRadius: 99,
               background: st.bg, border: `0.5px solid ${st.border}`, color: st.color,
+              fontWeight: 500, letterSpacing: '.03em',
             }}>
               {st.label}
             </span>
           </div>
-          <div style={{ display: 'flex', gap: 14, marginTop: 3, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)' }}>
-              {phase.startDate} → {phase.endDate}
-            </span>
+          <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>
+            {phase.subtitle}
             {deadline && (
-              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: deadline.color }}>
-                {deadline.label}
-              </span>
+              <span style={{ marginLeft: 10, color: deadline.color }}>{deadline.label}</span>
             )}
           </div>
         </div>
 
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 500, color: pct === 100 ? '#22c55e' : phase.color }}>
+        <div style={{ textAlign: 'right', flexShrink: 0, marginRight: 6 }}>
+          <div style={{ fontSize: 16, fontWeight: 600, color: pct === 100 ? '#22c55e' : phase.color, fontFamily: 'var(--font-mono)' }}>
             {pct}%
           </div>
           <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)' }}>
             {doneTasks}/{phase.tasks.length}
           </div>
         </div>
-        <div style={{ color: 'var(--color-text-tertiary)', fontSize: 11 }}>{open ? '▲' : '▼'}</div>
+        <div style={{ color: 'var(--color-text-tertiary)', fontSize: 10 }}>{open ? '▲' : '▼'}</div>
       </div>
 
       {/* progress bar */}
       <div style={{ height: 2, background: 'var(--color-background-secondary)', margin: '0 18px' }}>
         <div style={{
           height: '100%', width: `${pct}%`, background: phase.color,
-          borderRadius: 99, transition: 'width .4s ease',
+          borderRadius: 99, transition: 'width .5s ease',
         }} />
       </div>
 
       {/* body */}
       {open && (
-        <div style={{ padding: '14px 18px' }}>
+        <div style={{ padding: '16px 18px' }}>
 
-          {/* decision callout — Phase 2 only */}
-          {phase.decisionNote && (
-            <div style={{
-              background: 'var(--color-background-secondary)',
-              border: `0.5px solid ${phase.color}40`,
-              borderRadius: 10, padding: '12px 14px', marginBottom: 14,
-              fontSize: 12, color: 'var(--color-text-secondary)',
-              lineHeight: 1.8, whiteSpace: 'pre-line',
-              fontFamily: 'var(--font-mono)',
-            }}>
-              {phase.decisionNote}
+          {/* milestone */}
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', gap: 10,
+            background: phase.color + '10',
+            border: `0.5px solid ${phase.color}30`,
+            borderRadius: 8, padding: '10px 12px', marginBottom: 14,
+          }}>
+            <div style={{ fontSize: 11, color: phase.color, flexShrink: 0, marginTop: 1 }}>🏁</div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: phase.color, letterSpacing: '.04em', marginBottom: 2 }}>MILESTONE</div>
+              <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>{phase.milestone}</div>
             </div>
-          )}
+          </div>
 
           {/* note */}
-          <div style={{
-            fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.7,
-            marginBottom: 14, paddingRight: 12,
-            borderRight: `2px solid ${phase.color}`,
-          }}>
-            {phase.note}
-          </div>
+          {phase.note && (
+            <div style={{
+              fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.7,
+              marginBottom: 12, paddingRight: 12,
+              borderRight: `2px solid ${phase.color}50`,
+            }}>
+              {phase.note}
+            </div>
+          )}
 
           {/* tasks */}
           {phase.tasks.map((task, i) => (
@@ -595,16 +487,13 @@ function PhaseCard({ phase, roadmap, onToggle }) {
           ))}
 
           {/* footer */}
-          {phase.durationWeeks && (
-            <div style={{
-              marginTop: 14, paddingTop: 10,
-              borderTop: '0.5px solid var(--color-border-tertiary)',
-              fontSize: 11, color: 'var(--color-text-tertiary)',
-              fontFamily: 'var(--font-mono)',
-            }}>
-              ~{phase.durationWeeks} weeks at 6h/day · {phase.startDate} → {phase.endDate}
-            </div>
-          )}
+          <div style={{
+            marginTop: 14, paddingTop: 10,
+            borderTop: '0.5px solid var(--color-border-tertiary)',
+            fontSize: 10, color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)',
+          }}>
+            {phase.startDate} → {phase.endDate}
+          </div>
         </div>
       )}
     </div>
@@ -641,6 +530,12 @@ export default function Roadmap({ notify }) {
   }, 0)
   const overallPct = Math.round((totalDone / totalAll) * 100)
 
+  // find active phase for "current focus"
+  const activePhase = PHASES.find(p => p.status === 'active')
+  const activeNextTask = activePhase?.tasks.find((t, i) =>
+    activePhase.status !== 'done' && !roadmap[`${activePhase.id}_${i}`]
+  )
+
   if (loading) return (
     <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-tertiary)', fontSize: 13 }}>
       Loading roadmap...
@@ -652,7 +547,7 @@ export default function Roadmap({ notify }) {
       {/* Header */}
       <div className="page-header">
         <div className="page-title">Security Auditor <span>Roadmap</span></div>
-        <div className="page-sub">// 6h/day · Apr 2026 → Mar 2027 · Solidity ✓ · Foundry Fundamentals ✓</div>
+        <div className="page-sub">// Apr 2026 → Mar 2027 · Solidity ✓ · Foundry ✓ · Next: Cyfrin Security</div>
       </div>
 
       {/* Tabs */}
@@ -677,45 +572,62 @@ export default function Roadmap({ notify }) {
 
       {tab === 'roadmap' && (
         <>
-          {/* Overall progress */}
+          {/* Overall progress card */}
           <div style={{
             background: 'var(--color-background-secondary)',
             border: '0.5px solid var(--color-border-tertiary)',
-            borderRadius: 12, padding: '14px 18px', marginBottom: 16,
+            borderRadius: 12, padding: '14px 18px', marginBottom: 10,
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Overall progress</span>
-              <span style={{ fontSize: 12, fontWeight: 500, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>
-                {totalDone}/{totalAll} · {overallPct}%
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'flex-end' }}>
+              <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Overall Progress</span>
+              <span style={{ fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>
+                {overallPct}%
               </span>
             </div>
             <div style={{ background: 'var(--color-border-tertiary)', borderRadius: 99, height: 6, overflow: 'hidden' }}>
               <div style={{
                 height: '100%', width: `${overallPct}%`,
-                background: 'linear-gradient(90deg, #22c55e 0%, #3b82f6 100%)',
-                borderRadius: 99, transition: 'width .5s ease',
+                background: 'linear-gradient(90deg, #22c55e 0%, #f97316 50%, #a855f7 100%)',
+                borderRadius: 99, transition: 'width .6s ease',
               }} />
             </div>
-            <div style={{ display: 'flex', gap: 14, marginTop: 10, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
               {PHASES.map(p => {
                 const done = p.status === 'done'
                   ? p.tasks.length
                   : p.tasks.filter((_, i) => roadmap[`${p.id}_${i}`]).length
                 const pct = Math.round((done / p.tasks.length) * 100)
                 return (
-                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                     <div style={{
                       width: 7, height: 7, borderRadius: '50%',
                       background: pct === 100 ? '#22c55e' : pct > 0 ? p.color : 'var(--color-border-secondary)',
                     }} />
                     <span style={{ fontSize: 10, color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)' }}>
-                      P{p.id} {pct}%
+                      {p.code} {pct}%
                     </span>
                   </div>
                 )
               })}
             </div>
           </div>
+
+          {/* Current focus callout */}
+          {activePhase && activeNextTask && (
+            <div style={{
+              background: activePhase.color + '08',
+              border: `0.5px solid ${activePhase.color}40`,
+              borderRadius: 10, padding: '12px 16px', marginBottom: 14,
+              display: 'flex', gap: 10, alignItems: 'flex-start',
+            }}>
+              <div style={{ fontSize: 14, flexShrink: 0 }}>⚡</div>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: activePhase.color, letterSpacing: '.04em', marginBottom: 3 }}>NEXT UP</div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-primary)', fontWeight: 500 }}>{activeNextTask.text}</div>
+                <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 2 }}>{activePhase.title} · {activePhase.code}</div>
+              </div>
+            </div>
+          )}
 
           {PHASES.map(p => (
             <PhaseCard key={p.id} phase={p} roadmap={roadmap} onToggle={toggle} />
@@ -746,6 +658,7 @@ export default function Roadmap({ notify }) {
                 <span style={{
                   fontSize: 10, padding: '2px 8px', borderRadius: 99,
                   background: tc.bg, border: `0.5px solid ${tc.border}`, color: tc.text,
+                  fontWeight: 500,
                 }}>
                   {r.tag}
                 </span>
